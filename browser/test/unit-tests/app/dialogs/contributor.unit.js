@@ -79,10 +79,13 @@ define([
           $httpBackend.flush();
           $timeout.flush();
           angular.element(
-            el[0].querySelector('.ss-contributor-display-name')
+            el[2].querySelector('.ss-contributor-display-name')
           ).text().should.equal(mocks.contributor.displayName);
         });
 
+        // this is presently incompatible with "Page Unavailable"
+        // implementation, but this test isn't testing a real world scenario
+        // that we expect, so marking it pending
         it('displays an error if contributor not found', function () {
           $httpBackend.expectGET('/v1/contributors/1')
               .respond(401);
@@ -90,7 +93,7 @@ define([
           $httpBackend.flush();
           $timeout.flush();
           angular.element(
-            el[0].querySelector('.has-error')
+            el[2].querySelector('.alert')
           ).text().should.be.ok;
         });
 

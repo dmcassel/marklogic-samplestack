@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,9 +61,10 @@ public interface ContributorService {
 	public void delete(String... id);
 
 	/**
-	 * Wraps PojoRepository.read
-	 * @param id
-	 * @return
+	 * Wraps PojoRepository.read.
+	 * Unlike PojoRepository.read, this method returns null for no result.
+	 * @param id The contributor's id.
+	 * @return the Contributor or null
 	 */
 	public Contributor read(String id);
 
@@ -71,9 +72,24 @@ public interface ContributorService {
 	 * Wraps PojoRepository.search
 	 * @param qdef A query definition
 	 * @param start the first object to retrieve
-	 * @return
+	 * @return A page of Contributors
 	 */
 	public PojoPage<Contributor> search(PojoQueryDefinition qdef, long start);
 
-	public PojoPage<Contributor> readAll(int i);
+	/**
+	 * Wraps PojoRepository.readAll()
+	 * @param start The first index of the readAll operation
+	 * @return A Page of Contributor objects.
+	 */
+	public PojoPage<Contributor> readAll(int start);
+
+	/**
+	 * Reads an object by ID within a transaction.
+	 * Ensures that votes and reputation updates can happen
+	 * in the same atomic unit.
+	 * @param toAdjustId id of contributor object to adjust.
+	 * @param transaction the transaction in which to evaluate this read.
+	 * @return A contributor object.
+	 */
+	public Contributor read(String toAdjustId, Transaction transaction);
 }

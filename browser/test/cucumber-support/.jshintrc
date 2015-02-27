@@ -8,8 +8,9 @@
     "element": false,
     "expect": false,
     "World": false,
-    "ptor": false,
-    "q": false
+    "q": false,
+    "_": false,
+    "protractor": false
   },
   "esnext": false,
   "expr": true,

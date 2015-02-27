@@ -7,7 +7,16 @@ define(['app/module', 'app/components'], function (module) {
   // all components to be defined and included.
 
   //read buildParams app settings into a variable via lodash template
-  var buildOptions = angular.fromJson('<%= JSON.stringify(options) %>');
+
+  var buildOptions;
+  /* jscs:disable */
+  /* jshint ignore:start */
+  buildOptions = {
+    enableCsrf: <%= JSON.stringify(options.enableCsrf) %>,
+    html5Mode: <%= JSON.stringify(options.html5Mode) %>
+  };
+  /* jshint ignore:end */
+  /* jscs:enable */
 
   module.config([
     '$provide',
@@ -32,6 +41,16 @@ define(['app/module', 'app/components'], function (module) {
           if (cause) {
             alert += '\n\nCause: ' + cause;
           }
+
+          var trace;
+          try {
+            trace = window.stacktrace({ e: exception });
+            if (trace) {
+              alert += '\n\nStack trace:\n\n<pre>' +
+                  trace.join('\n') + '</pre>\n';
+            }
+          }
+          catch (err) {}
 
           $rootScope.globalError = alert;
           $rootScope.loading = false;

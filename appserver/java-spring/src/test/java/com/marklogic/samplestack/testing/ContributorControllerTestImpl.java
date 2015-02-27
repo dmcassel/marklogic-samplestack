@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,16 +48,16 @@ public class ContributorControllerTestImpl extends ControllerTests {
 	public void testContributorCRUD() throws Exception {
 
 		Contributor basicUser = Utils.getBasicUser();
-		login("maryAdmin@marklogic.com", "marysPassword");
-		
+		login("testA1@example.com", "a1");
+
 		this.mockMvc.perform(
 				delete("/v1/contributors/" + basicUser.getId())
 				.session((MockHttpSession) session)
 				.locale(Locale.ENGLISH))
 				.andExpect(status().isOk()).andReturn().getResponse();
 		logout();
-	
-		login("joeUser@marklogic.com", "joesPassword");
+
+		login("testC1@example.com", "c1");
 		this.mockMvc.perform(
 				post("/v1/contributors")
 				.with(csrf())
@@ -68,7 +68,7 @@ public class ContributorControllerTestImpl extends ControllerTests {
 				.andExpect(status().isForbidden());
 
 		logger.debug("Basic User:" + mapper.writeValueAsString(basicUser));
-		login("maryAdmin@marklogic.com", "marysPassword");
+		login("testA1@example.com", "a1");
 		
 		MockHttpServletResponse response = this.mockMvc
 				.perform(
@@ -85,7 +85,7 @@ public class ContributorControllerTestImpl extends ControllerTests {
 		Contributor returnedUser = mapper.readValue(returnedString,
 				Contributor.class);
 		logger.debug("Returned User:" + mapper.writeValueAsString(returnedUser));
-		assertEquals("cgreer@marklogic.com", returnedUser.getUserName());
+		assertEquals("cgreer@example.com", returnedUser.getUserName());
 
 		String contributorsList = this.mockMvc
 				.perform(
@@ -121,7 +121,7 @@ public class ContributorControllerTestImpl extends ControllerTests {
 		assertEquals("Id name matches when get By ID", getById.getId(),
 				returnedUser.getId());
 		
-		login("maryAdmin@marklogic.com", "marysPassword");
+		login("testA1@example.com", "a1");
 		
 		this.mockMvc.perform(
 				delete("/v1/contributors/" + returnedUser.getId())

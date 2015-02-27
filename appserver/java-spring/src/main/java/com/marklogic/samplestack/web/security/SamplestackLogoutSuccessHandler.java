@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.stereotype.Component;
 
-@Component
 /**
  * Logout handler that simply provides a 200 OK upon logout.
  * Default behavior for Spring Security form login is a 302.
- *
  */
+@Component
 public class SamplestackLogoutSuccessHandler implements LogoutSuccessHandler {
 
 	@Override

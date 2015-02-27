@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,27 +87,23 @@ public class QnADocumentControllerTests extends QnADocumentControllerTestImpl {
 		super.commentOnAnswer();
 	}
 
-	@Override
 	@Test
-	public void voteUpQuestion() throws Exception {
+	public void testVoteUpQuestion() throws Exception {
 		super.voteUpQuestion();
 	}
 
-	@Override
 	@Test
-	public void voteDownQuestion() throws Exception {
+	public void testVoteDownQuestion() throws Exception {
 		super.voteDownQuestion();
 	}
 
-	@Override
 	@Test
-	public void voteUpAnswer() throws Exception {
+	public void testVoteUpAnswer() throws Exception {
 		super.voteUpAnswer();
 	}
 
-	@Override
 	@Test
-	public void voteDownAnswer() throws Exception {
+	public void testVoteDownAnswer() throws Exception {
 		super.voteDownAnswer();
 	}
 
@@ -121,6 +117,11 @@ public class QnADocumentControllerTests extends QnADocumentControllerTestImpl {
 	@Test
 	public void testAnonymousAccessToAccepted() throws Exception {
 		//not a mockable test
+	}
+	
+	@Test
+	public void testIncludeTimezoneAdjustsDateFacet() throws JsonProcessingException, Exception {
+		super.testIncludeTimezone("queries/test-timezone-query.json");
 	}
 
 }

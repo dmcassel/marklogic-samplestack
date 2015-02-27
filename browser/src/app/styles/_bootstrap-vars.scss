@@ -1,6 +1,6 @@
 // set up path to bootstrap font-icons
 $bootstrap-sass-asset-helper: false;
-$icon-font-path: '/deps/bootstrap-sass-official/assets/fonts/bootstrap/';
+$icon-font-path: '/deps/bootstrap-sass/assets/fonts/bootstrap/';
 //
 // Variables
 // --------------------------------------------------
@@ -511,7 +511,8 @@ $state-danger-border:            darken(adjust-hue($state-danger-bg, -10), 5%) !
 //##
 
 //** Tooltip max width
-$tooltip-max-width:           200px !default;
+$tooltip-max-width:           400px !default;
+$tooltip-min-width:           140px !default;
 //** Tooltip text color
 $tooltip-color:               #fff !default;
 //** Tooltip background color

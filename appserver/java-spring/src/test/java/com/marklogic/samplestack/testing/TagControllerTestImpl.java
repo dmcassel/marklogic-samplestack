@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,13 +36,13 @@ public class TagControllerTestImpl extends ControllerTests {
 	public void testTagsAnonymousOK() throws Exception {
 		this.mockMvc.perform(
 				post("/v1/tags").contentType(MediaType.APPLICATION_JSON)
-						.content("{\"qtext\":\"true\"}")
+						.content("{\"search\":{\"qtext\":\"true\"}}")
 						.accept(MediaType.APPLICATION_JSON)).andExpect(
 				status().isOk());
 	}
 
 	public void testTagsNoArgs() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		MvcResult result = this.mockMvc
 				.perform(
 						post("/v1/tags").session((MockHttpSession) session)
@@ -57,12 +57,12 @@ public class TagControllerTestImpl extends ControllerTests {
 	 * isolate test data from seed data.
 	 */
 	public void testTagsWithArgument() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		MvcResult result = this.mockMvc
 				.perform(
 						post("/v1/tags").session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"qtext\":[\"tag:ada\", \"tag:test-data-tag\"]}")
+								.content("{\"search\":{\"forTag\":\"ada\",\"qtext\":[\"tag:test-data-tag\"]}}")
 								.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andReturn();
 		String responseString = result
@@ -70,7 +70,7 @@ public class TagControllerTestImpl extends ControllerTests {
 		JSONAssert.assertEquals("{values-response:{name:\"tags\"}}", responseString, false);
 		logger.debug(responseString);
 		ObjectNode results = mapper.readValue(responseString, ObjectNode.class);
-		assertEquals("Size of page length", 2, results.get("values-response").get("distinct-value").size());
+		assertEquals("Size of page length", 1, results.get("values-response").get("distinct-value").size());
 
 	}
 	
@@ -79,7 +79,7 @@ public class TagControllerTestImpl extends ControllerTests {
 				.perform(
 						post("/v1/tags")
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"pageLength\":1}")
+								.content("{\"search\":{\"pageLength\":1}}")
 								.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andReturn();
 
@@ -97,8 +97,8 @@ public class TagControllerTestImpl extends ControllerTests {
 				.perform(
 						post("/v1/tags")
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"start\":3,"
-										+ "\"sort\":\"item\"}")
+								.content("{\"search\":{\"start\":3,"
+										+ "\"sort\":\"name\"}}")
 								.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andReturn();
 		String responseString = result
@@ -107,21 +107,20 @@ public class TagControllerTestImpl extends ControllerTests {
 	
 	}
 
-	
 	public void testLoggedInSortFrequency() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
-		
+		login("testC1@example.com", "c1");
+
 		MvcResult result = this.mockMvc
 				.perform(
 						post("/v1/tags").session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"start\":1,"
+								.content("{\"search\":{\"start\":1,"
 										+ "\"sort\":\"frequency\","
 										+ "\"pageLength\":5,"
-										+ "\"qtext\":\"tag:test-data-tag\"}")
+										+ "\"qtext\":\"tag:test-data-tag\"}}")
 								.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk()).andReturn();
-		JSONAssert.assertEquals("{values-response:{distinct-value:[{_value: \"test-data-tag\",frequency: 11 },{_value: \"ada\",frequency: 2 }, { _value: \"javascript\", frequency: 2 }, { _value: \"python\", frequency: 2 }, { _value: \"blob\", frequency: 1 } ], name: \"tags\", type: \"xs:string\" } }"
+		JSONAssert.assertEquals("{values-response:{distinct-value:[{_value: \"test-data-tag\",frequency: 11 },{_value: \"ada\",frequency: 2 }, { _value: \"javascript\", frequency: 2 }, { _value: \"python\", frequency: 2 }, { _value: \"tex\", frequency: 2 } ], name: \"tags\", type: \"xs:string\" } }"
 					, result.getResponse().getContentAsString(), false);
 	}
 
@@ -130,12 +129,37 @@ public class TagControllerTestImpl extends ControllerTests {
 		@SuppressWarnings("unused")
 		MvcResult result = this.mockMvc
 				.perform(
-
 						post("/v1/tags")
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"sort\":\"bug\"}")
+								.content("{\"search\":{\"sort\":\"bug\"}}")
 								.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isBadRequest()).andReturn();
+	}
+
+	public MvcResult testRelatedTagsNoArgs() throws Exception {
+		MvcResult result = this.mockMvc
+				.perform(
+						post("/v1/tags")
+								.contentType(MediaType.APPLICATION_JSON)
+								.content("{\"search\":{\"relatedTo\":\"tex\","
+										+ "\"qtext\":\"tag:test-data-tag\"}}")
+								.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk()).andReturn();
+		return result;
+	}
+
+	public MvcResult testRelatedTagsStartPageLength() throws Exception {
+		MvcResult result = this.mockMvc
+				.perform(
+						post("/v1/tags")
+								.contentType(MediaType.APPLICATION_JSON)
+								.content("{\"search\":{\"relatedTo\":\"tex\","
+										+ "\"pageLength\":1,"
+										+ "\"start\":3,"
+										+ "\"qtext\":\"tag:test-data-tag\"}}")
+								.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk()).andReturn();
+		return result;
 	}
 
 }

@@ -9,7 +9,7 @@ configurations.all {
 /* spring boot build dependency */
 buildscript {
 	ext {
-		springBootVersion = '1.1.8.RELEASE'
+		springBootVersion = '1.2.1.RELEASE'
 	}
     repositories {
         mavenCentral()
@@ -19,6 +19,7 @@ buildscript {
     }
     dependencies {
         classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath 'de.undercouch:gradle-download-task:1.2'
     }
 }
 
@@ -28,20 +29,11 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'spring-boot'
+apply plugin: 'de.undercouch.download'
 
 group = samplestackGroup
 version = samplestackVersion
 sourceCompatibility = samplestackSourceCompatibility
-
-/*
- * appserver
- * assembles the project, loads sample data and starts the appserver on port 8090
- */
-task appserver <<
-{
-   println "Bootstrapping, seeding and starting Samplestack appserver"
-}
-
 
 /*
  * INIT
@@ -90,10 +82,15 @@ assemble.dependsOn(dbInit, dbConfigure, test)
 /**
  * FETCH SEED DATA
  */
-task seedDataFetch(type: MarkLogicFetchTask) {
-    url = "http://developer.marklogic.com/media/gh/seed-data1.4.tgz"
-    destFile = file("${buildDir}/seed.tgz")
+task seedDataFetch {
+    def url = project.hasProperty("seedDataUrl") ? project.seedDataUrl : "http://developer.marklogic.com/media/gh/seed-data1.8.2.tgz"
+    logger.warn("Fetching data from " + url)
+    def destFile = file("${buildDir}/seed.tgz")
     outputs.file destFile
+    download {
+       src url
+       dest destFile
+    }
 }
 seedDataFetch.dependsOn(processResources)
 
@@ -116,7 +113,7 @@ seedDataExtract.dependsOn(seedDataFetch)
  * LOAD
  */
 task dbLoad(type: MarkLogicSlurpTask) {
-    seedDirectory = file("${buildDir}/seed-data")  
+    seedDirectory = file("${buildDir}/seed-data")
     inputs.dir seedDirectory
 }
 dbLoad.mustRunAfter(assemble)
@@ -130,7 +127,7 @@ dbLoad.outputs.upToDateWhen { false }
 task dbClear(type: MarkLogicClearTask)
 
 
-/* use same properties for gradle and runtime */
+/* use same properties for gradle and Java runtime */
 task props(type: Copy) {
     from('.') {
         include 'gradle.properties'
@@ -138,9 +135,14 @@ task props(type: Copy) {
     into 'src/main/resources'
 }
 
-/**
- * appserver dependency
+/*
+ * appserver
+ * assembles the project, loads sample data and starts the appserver on port 8090
  */
+task appserver <<
+{
+   println "Bootstrapping, seeding and starting Samplestack appserver"
+}
 appserver.dependsOn(clean, assemble, dbLoad, bootRun)
 bootRun.shouldRunAfter(dbLoad)
 
@@ -149,24 +151,20 @@ repositories {
     mavenCentral()
     maven { url "http://repo.spring.io/snapshot" }
     maven { url "http://repo.spring.io/milestone" }
-    maven { url "https://raw.github.com/marklogic/java-client-api/mvn-repo" }
 }
 
 dependencies {
     compile "org.codehaus.groovy:groovy-all:2.3.7"
     compile("org.springframework.boot:spring-boot-starter-security:${springBootVersion}")
-    compile("org.springframework.boot:spring-boot-starter-web:${springBootVersion}") {
-        exclude(group: "org.springframework.boot", module: "spring-boot-starter-tomcat")
-    }
-    compile("org.springframework.boot:spring-boot-starter-jetty:${springBootVersion}")
-    compile("org.springframework.security:spring-security-ldap:4.0.0.M2")
-    compile("org.springframework.security:spring-security-web:4.0.0.M2")
-    compile("org.springframework.security:spring-security-test:4.0.0.M2")
+    compile("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
+    compile("org.springframework.security:spring-security-ldap:4.0.0.RC1")
+    compile("org.springframework.security:spring-security-web:4.0.0.RC1")
+    compile("org.springframework.security:spring-security-test:4.0.0.RC1")
     compile("org.apache.directory.server:apacheds-server-jndi:1.5.5")
     compile("org.apache.directory.server:apacheds-bootstrap-partition:1.5.5")
     compile("org.apache.directory.server:apacheds-bootstrap-extract:1.5.5")
     compile("joda-time:joda-time:2.4")
-    compile(group: 'com.marklogic', name: 'client-api-java', version: '3.0-SNAPSHOT', changing: true) {
+    compile('com.marklogic:java-client-api:3.0.1') {
         exclude(group: 'org.slf4j')
         exclude(group: 'ch.qos.logback')
     }
@@ -199,5 +197,5 @@ task integrationTest(type: Test) {
 
 /* task to generate the gradle wrapper script */
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.1'
+    gradleVersion = '2.3'
 }

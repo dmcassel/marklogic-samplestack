@@ -9,7 +9,7 @@
   background-repeat: no-repeat;
   height: 50vh;
   position: absolute;
-  width: 100vh;
+  width: 100%;
   z-index: 1;
 }
 
@@ -40,12 +40,23 @@
 
 .ss-incomplete-message {
   max-width: $view-max-width;
+  position: absolute;
   text-align: center;
 }
 
 .has-error {
   border: 1px solid #f00;
   padding: 5px;
+}
+
+.ss-global-error {
+  font-size: 8pt;
+  margin-bottom: -($navbar-height);
+  margin-top: $navbar-height;
+
+  pre {
+    font-size: 8pt;
+  }
 }
 
 p.has-error {

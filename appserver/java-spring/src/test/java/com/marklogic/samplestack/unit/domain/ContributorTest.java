@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,32 +40,32 @@ import com.marklogic.samplestack.testing.Utils;
  */
 public class ContributorTest {
 
-	Contributor joe, mary;
+	Contributor testC1, mary;
 	ObjectMapper mapper =  new CustomObjectMapper();
 	
 	@Before
 	public void init() throws JsonParseException, JsonMappingException, IOException {
-		joe = Utils.joeUser;
-		mary = Utils.maryAdmin;
+		testC1 = Utils.testC1;
+		mary = Utils.testA1;
 	}
 	
 	@Test
 	public void testTheTestJson() {
-		assertEquals("joeUser", joe.getDisplayName());
-		assertEquals("Some text about a basic user", joe.getAboutMe());
-		assertEquals(Utils.JoesUUID, joe.getId());
-		assertEquals("Barrow", joe.getLocation());
+		assertEquals("testC1", testC1.getDisplayName());
+		assertEquals("Some text about a basic user", testC1.getAboutMe());
+		assertEquals(Utils.testC1UUID, testC1.getId());
+		assertEquals("Barrow", testC1.getLocation());
 		// assertEquals(0, joe.getReputation());
-		assertEquals("joeUser@marklogic.com", joe.getUserName());
+		assertEquals("testC1@example.com", testC1.getUserName());
 		// assertEquals(0, joe.getVotes().size());
-		assertEquals("http://website.com/grechaw", joe.getWebsiteUrl());
+		assertEquals("http://website.com/grechaw", testC1.getWebsiteUrl());
 	}
 	
 	@Test
 	public void testSparseContributor() throws JsonProcessingException {
-		SparseContributor sparseJoe = Utils.joeUser.asSparseContributor();
-		assertEquals("joeUser", sparseJoe.getDisplayName());
-		assertEquals("joeUser@marklogic.com", sparseJoe.getUserName());
+		SparseContributor sparseJoe = Utils.testC1.asSparseContributor();
+		assertEquals("testC1", sparseJoe.getDisplayName());
+		assertEquals("testC1@example.com", sparseJoe.getUserName());
 		String sparseToString = mapper.writeValueAsString(sparseJoe);
 		assertFalse("Some text about a basic user", sparseToString.contains("Some text about"));
 	}

@@ -4,14 +4,14 @@ define([
   './ssQnaDoc.unit',
   './ssAnswer.unit',
   './ssComment.unit',
-  './ssHasVoted.unit'
+  './ssTagsSearch.unit'
 ], function (
   ssSearch,
   ssSession,
   ssQnaDoc,
   ssAnswer,
   ssComment,
-  ssHasVoted
+  ssTagsSearch
 ) {
 
   return function () {
@@ -22,8 +22,7 @@ define([
       ssQnaDoc();
       ssAnswer();
       ssComment();
-      ssHasVoted();
+      ssTagsSearch();
     });
-
   };
 });

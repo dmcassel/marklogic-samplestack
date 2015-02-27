@@ -1,3 +1,18 @@
+/*
+ * Copyright 2012-2015 MarkLogic Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.marklogic.samplestack.mock;
 
 import java.util.ArrayList;
@@ -217,28 +232,60 @@ public class MockPojoRepositoryImpl implements
 
 		@Override
 		public boolean hasNext() {
-			// TODO Auto-generated method stub
 			return false;
 		}
 
 		@Override
 		public Contributor next() {
-			// TODO Auto-generated method stub
 			return null;
 		}
 
-	}
+		@Override
+		public void close() {
+			//noop
+		}
 
-	@Override
-	public void defineIdProperty(String fieldName) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public long count(PojoQueryDefinition query) {
 		// TODO Auto-generated method stub
 		return 0;
+	}
+
+	@Override
+	public boolean exists(String id, Transaction transaction) {
+		return false;
+	}
+
+	@Override
+	public long count(Transaction transaction) {
+		return 0;
+	}
+
+	@Override
+	public long count(String[] collections, Transaction transaction) {
+		return 0;
+	}
+
+	@Override
+	public long count(PojoQueryDefinition query, Transaction transaction) {
+		return 0;
+	}
+
+	@Override
+	public void delete(String[] ids, Transaction transaction) {
+		// noop
+	}
+
+	@Override
+	public void deleteAll(Transaction transaction) {
+		// noop
+	}
+
+	@Override
+	public String getDocumentUri(Contributor pojo) {
+		return "/some-uri.json";
 	}
 
 }

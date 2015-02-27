@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,17 @@
  * limitations under the License.
 */
 /**
- * Contains implementations/Spring framework components that implement
- * the interfaces in com.marklogic.samplestack.service
+ * This package contains the code that interacts with MarkLogic
+ * server using the Java Client API.
+ * <p>
+ * Classes in this package implement the various 
+ * {@linkplain com.marklogic.samplestack.service Samplestack services}.
+ * <p>
+ * You'll find two basic approaches to data access.  
+ * {@link com.marklogic.samplestack.domain.Contributor} objects use MarkLogic 8's 
+ * {@link com.marklogic.client.pojo.PojoRepository}
+ * as a base for data access, while {@link com.marklogic.samplestack.domain.QnADocument} 
+ * objects are handled as JSON, and use some techniques for partial document 
+ * update, and multi-statement transactions.
  */
 package com.marklogic.samplestack.dbclient;

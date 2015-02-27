@@ -14,7 +14,9 @@
 .gradle
 
 build
-static
+
+buildSrc/build
+# static
 public
 .classpath
 .project

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,11 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.marklogic.client.ResourceNotFoundException;
 import com.marklogic.client.Transaction;
+import com.marklogic.client.document.DocumentMetadataPatchBuilder;
+import com.marklogic.client.io.DocumentMetadataHandle.Capability;
+import com.marklogic.client.io.marker.DocumentPatchHandle;
 import com.marklogic.client.pojo.PojoPage;
 import com.marklogic.client.pojo.PojoQueryBuilder;
 import com.marklogic.client.pojo.PojoQueryDefinition;
@@ -51,8 +55,8 @@ import com.marklogic.samplestack.service.ContributorService;
 public class MarkLogicContributorService extends MarkLogicBaseService implements
 		ContributorService {
 
-	private static Contributor joeUser;
-	private static Contributor maryAdmin;
+	private static Contributor joe;
+	private static Contributor mary;
 
 	private final Logger logger = LoggerFactory
 			.getLogger(MarkLogicContributorService.class);
@@ -65,7 +69,19 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 	}
 
 	public Contributor read(String id) {
-		return repository.read(id);
+		try {
+			return repository.read(id);
+		} catch (ResourceNotFoundException ex) {
+			return null;
+		}
+	}
+	
+	public Contributor read(String id, Transaction transaction) {
+		try {
+			return repository.read(id, transaction);
+		} catch (ResourceNotFoundException ex) {
+			return null;
+		}
 	}
 
 	public PojoPage<Contributor> search(PojoQueryDefinition query, long start) {
@@ -81,28 +97,28 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 		try {
 			// leave them alone if already in db.
 			Contributor storedMary = this
-					.read("9611450-0663-45a5-8a08-f1c71320475e");
+					.read("9611450a-0663-45a5-8a08-f1c71320475e");
 			Contributor storedJoe = this
 					.read("cf99542d-f024-4478-a6dc-7e723a51b040");
 
 			if (storedJoe == null) {
 				ClassPathResource joeResource = new ClassPathResource(
-						"contributor/joeUser.json");
-				joeUser = mapper.readValue(joeResource.getInputStream(),
+						"contributor/joe.json");
+				joe = mapper.readValue(joeResource.getInputStream(),
 						Contributor.class);
-				this.store(joeUser);
+				this.store(joe);
 			} else {
-				logger.info("joeUser already in the database");
+				logger.info("joe already in the database");
 			}
 
 			if (storedMary == null) {
 				ClassPathResource maryResource = new ClassPathResource(
-						"contributor/maryAdmin.json");
-				maryAdmin = mapper.readValue(maryResource.getInputStream(),
+						"contributor/mary.json");
+				mary = mapper.readValue(maryResource.getInputStream(),
 						Contributor.class);
-				this.store(maryAdmin);
+				this.store(mary);
 			} else {
-				logger.info("maryAdmin already in the database");
+				logger.info("mary already in the database");
 			}
 		} catch (JsonParseException e) {
 			throw new SamplestackIOException(
@@ -116,13 +132,23 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 		}
 	}
 
+
 	@Override
 	public Contributor getByUserName(String userName) {
+		return getByUserName(userName, null);
+	}
+	
+	public Contributor getByUserName(String userName, Transaction transaction) {
 		@SuppressWarnings("rawtypes")
 		PojoQueryBuilder qb = repository.getQueryBuilder();
 		PojoQueryDefinition qdef = qb.value("userName", userName);
 
-		PojoPage<Contributor> page = repository.search(qdef, 1);
+		PojoPage<Contributor> page = null;
+		if (transaction == null) {
+			page = repository.search(qdef, 1);
+		} else {
+			page = repository.search(qdef, 1, transaction);
+		}	
 		if (page.getTotalSize() == 1) {
 			return page.iterator().next();
 		} else if (page.size() > 1) {
@@ -149,8 +175,7 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 
 	@Override
 	public void store(Contributor contributor, Transaction transaction) {
-		logger.debug("Storing contributor id " + contributor.getId());
-		Contributor cachedContributor = getByUserName(contributor.getUserName());
+		Contributor cachedContributor = getByUserName(contributor.getUserName(), transaction);
 		if (cachedContributor != null)
 			logger.debug("cached contributor " + cachedContributor.getId());
 		if (contributor != null)
@@ -162,10 +187,20 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 					+ contributor.getUserName()
 					+ " collides with pre-existing one");
 		}
+
+		// HACK  -- how to use repository to patch permissions?
+		DocumentMetadataPatchBuilder patchBuilder = jsonDocumentManager(
+				ClientRole.SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
+
+		patchBuilder.addPermission("samplestack-guest", Capability.READ);
+		DocumentPatchHandle patch = patchBuilder.build();
+		String uri = repository.getDocumentUri(contributor);
 		if (transaction == null) {
 			repository.write(contributor);
+			jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(uri, patch);
 		} else {
 			repository.write(contributor, transaction);
+			jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(uri, patch, transaction);
 		}
 
 	}
@@ -174,4 +209,5 @@ public class MarkLogicContributorService extends MarkLogicBaseService implements
 	public PojoPage<Contributor> readAll(int i) {
 		return repository.readAll(i);
 	}
+
 }

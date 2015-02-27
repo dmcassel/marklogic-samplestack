@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
  */
 package com.marklogic.samplestack.service;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.joda.time.DateTimeZone;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.samplestack.domain.Contributor;
 import com.marklogic.samplestack.domain.InitialQuestion;
@@ -29,6 +30,8 @@ public interface QnAService {
 
 	/**
 	 * Search for a particular string, as entered in the Samplestack search box.
+	 * With this version, the document's votes will be stripped such that
+	 * they only contain the id that is supplied as the 4th argument.
 	 * 
 	 * @param role
 	 *            ClientRole on whose behalf to execute the search.
@@ -36,10 +39,14 @@ public interface QnAService {
 	 *            The question/terms to search for
 	 * @param start
 	 *            The index of the first result in the result set.
+	 * @param loggedInId
+	 *            The voting results are dependent on the logged-in user Id.
+	 *            If null, then no filtering on upvote/downvote will be done.
 	 * @return A QuestionResults object containing results/snippets for the
 	 *         search.
 	 */
-	public QnADocument findOne(ClientRole role, String queryString, long start);
+	public QnADocument findOne(ClientRole role, String queryString, long start, String loggedInId);
+
 
 	/**
 	 * Send a [JSON] raw structured query to the server, using the options
@@ -47,19 +54,17 @@ public interface QnAService {
 	 * 
 	 * @param role
 	 *            ClientRole on whose behalf to execute the search.
-	 * @param structuredQuery
-	 *            A JSON structured query payload, as a JSONNode.
+	 * @param combinedQuery
+	 *            A JSON combined query payload, as a JSONNode.
 	 * @param start
 	 *            Index of the first result in the result set.
-	 * @param qtext 
-     *            0 or more Qtext to be anded with structured Query.
-	 * @param includeDates
-	 *            Include facet for date values
+	 * @param userTimeZone
+	 *            If not null, project the date time facets using the given timezone.
 	 * @return A QuestionResults object containing results/snippets for the
 	 *         search.
 	 */
-	public ObjectNode rawSearch(ClientRole role, ObjectNode structuredQuery,
-			long start, ArrayNode qtext, boolean includeDates);
+	public ObjectNode rawSearch(ClientRole role, ObjectNode combinedQuery,
+			long start, DateTimeZone userTimeZone);
 	
 	/**
 	 * Send a [JSON] raw structured query to the server, using the options
@@ -129,21 +134,24 @@ public interface QnAService {
 	 * Marks a particular answer as accepted. Note -- requirement that only
 	 * owner may accept an answer is enforced in UI. In the service/data layer
 	 * the author of the question isn't important or recorded.
-	 * 
+	 * @param contributor 
+     *            The contributor who is accepting a question.
 	 * @param postId
 	 *            The identifier of the answer to be accepted.
 	 */
-	public QnADocument accept(String postId);
+	public QnADocument accept(Contributor contributor, String postId);
 
 	/**
 	 * Retrieves a QnADocument by id.
 	 * 
-	 * @param id
-	 *            The id of the QnA document, which is the same as the id of the
-	 *            question.
+	 * @param role
+	 *            ClientRole on whose behalf to execute the search.
+	  * @param contributor
+	 *            The contributor who is getting the question.
+	 * @param id  Any id in the QnA document
 	 * @return The QnADocument identified by id
 	 */
-	public QnADocument get(ClientRole role, String id);
+	public QnADocument get(ClientRole role, Contributor contributor, String id);
 
 	/**
 	 * Removes a QnA document from the database. Not used by the runtime
@@ -171,6 +179,5 @@ public interface QnAService {
 	 * Removes all the QnA documents from the database. Convenient for testing.
 	 */
 	public void deleteAll();
-
 
 }

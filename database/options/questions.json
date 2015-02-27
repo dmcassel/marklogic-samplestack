@@ -1,7 +1,42 @@
 {
     "options": {
-        "additional-query": "<directory-query xmlns='http://marklogic.com/cts'><uri>/questions/</uri></directory-query>",
         "constraint": [
+            {
+                "name": "askedBy",
+                "range": {
+                    "facet": "false",
+                    "path-index": {
+                        "text": "/owner/displayName"
+                    },
+                    "type": "xs:string"
+                }
+            },
+            {
+                "name": "answeredBy",
+                "range": {
+                    "facet": "false",
+                    "path-index": {
+                        "text": "/answers/owner/displayName"
+                    },
+                    "type": "xs:string"
+                }
+            },
+            {
+                "name": "commentedBy",
+                "range": {
+                    "facet": "false",
+                    "path-index": {
+                        "text": "//comments/owner/displayName"
+                    },
+                    "type": "xs:string"
+                }
+            },
+            {
+                "name": "user",
+                "value": {
+                    "json-property": "displayName"
+                }
+            },
             {
                 "name": "userName",
                 "value": {
@@ -17,13 +52,20 @@
                 }
             },
             {
+                "name": "title",
+                "word": {
+                    "json-property": "title"
+                }
+            },
+            {
                 "name": "resolved",
                 "value": {
+                    "type":"boolean",
                     "json-property": "accepted"
                 }
             },
             {
-                "name": "date",
+                "name": "lastActivity",
                 "range": {
                     "facet": "false",
                     "json-property": "lastActivityDate",
@@ -103,9 +145,16 @@
         "return-qtext": true,
         "return-query": true,
         "term": {
-            "empty": {
-                "apply": "all-results"
-            }
+            "empty": { "apply": "all-results" },
+            "default": {"word":
+                {"field":{"name":"default-samplestack-search"}}}
+        },
+        "transform-results":{
+            "apply":"snippet",
+            "max-snippet-chars":100,
+            "max-matches":4,
+            "per-match-tokens":12,
+            "preferred-matches":{"json-property":["text","title"]}
         },
         "values": [
             {

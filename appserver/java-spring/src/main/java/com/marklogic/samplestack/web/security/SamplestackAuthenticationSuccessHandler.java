@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ import com.marklogic.samplestack.domain.Contributor;
 import com.marklogic.samplestack.security.ClientRole;
 import com.marklogic.samplestack.service.ContributorService;
 
-@Component
 /**
  * On authentication success, this customization returns a 200 OK
  * with the logged-in contributor's profile information inline.
@@ -47,6 +46,7 @@ import com.marklogic.samplestack.service.ContributorService;
  * See http://www.baeldung.com/2011/10/31/securing-a-restful-web-service-with-spring-security-3-1-part-3/
  * for the inspiration for this method.
  */
+@Component
 public class SamplestackAuthenticationSuccessHandler extends
 		SimpleUrlAuthenticationSuccessHandler {
 

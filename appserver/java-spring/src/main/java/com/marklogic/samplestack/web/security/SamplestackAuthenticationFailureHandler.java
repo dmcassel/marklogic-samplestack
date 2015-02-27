@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@ import org.springframework.stereotype.Component;
 
 import com.marklogic.samplestack.web.JsonHttpResponse;
 
-@Component
 /**
  * Customization to default Spring Security behavior, which
  * simply provides a 401 response to the client then authenication fails.
  */
+@Component
 public class SamplestackAuthenticationFailureHandler extends
 		SimpleUrlAuthenticationFailureHandler {
 

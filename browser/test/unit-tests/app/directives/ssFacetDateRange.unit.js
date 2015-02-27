@@ -13,6 +13,7 @@ define(['testHelper','mocks/index'], function (helper, mocks) {
       var emitSpy;
 
       beforeEach(function (done) {
+        this.timeout(5000);
         module('app');
 
         inject(
@@ -52,6 +53,7 @@ define(['testHelper','mocks/index'], function (helper, mocks) {
             scope.$emit('newResults');
             scope.$apply();
             emitSpy = sinon.spy(scope, '$emit');
+            $timeout.flush();
             done();
           }
         );
@@ -69,6 +71,24 @@ define(['testHelper','mocks/index'], function (helper, mocks) {
           scope.chart.target.series[0].points[2].firePointEvent('click', event);
           scope.$apply();
           expect(emitSpy.calledWith('criteriaChange')).to.be.true;
+        }
+      );
+
+      it(
+        'should represent dates in browser-local timezone on month click',
+        function () {
+          var point = scope.chart.target.series[0].points[2];
+          var event = { point: point };
+          point.firePointEvent('click', event);
+          scope.$apply();
+          var resultDataPoint = ssSearchInstance.results.facets.dates[2].name;
+          var resultStart = mlUtil.moment(resultDataPoint, 'YYYYMM');
+          // starts on beginning of month incl. timezone
+          expect(resultStart.toISOString())
+              .to.equal(scope.constraints.dateStart.value.toISOString());
+          // ends on beginning of next month incl. timezone
+          expect(resultStart.add(1, 'M').toISOString())
+              .to.equal(scope.constraints.dateEnd.value.toISOString());
         }
       );
 

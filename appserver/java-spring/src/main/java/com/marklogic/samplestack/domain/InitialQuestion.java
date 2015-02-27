@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,14 @@ public class InitialQuestion {
 
 	/** The total number of votes on this question-and-answer document */
 	private long voteCount;
+	
+	/** An array of Ids that track who has voted "up" on this question */
+	private String[] upvotingContributorIds;
+	
+	/** An array of Ids that track who have voted "down" on this question */
+	private String[] downvotingContributorIds;
+	
+	
 	public InitialQuestion() {
 		this.tags = new String[] {};
 		this.comments = new Comment[] {};
@@ -59,6 +67,8 @@ public class InitialQuestion {
 		this.itemTally = 0L;
 		this.accepted = false;
 		this.answerCount = 0L;
+		this.setUpvotingContributorIds(new String[] {});
+		this.setDownvotingContributorIds(new String[] {});
 	}
 	public Boolean getAccepted() {
 		return accepted;
@@ -148,5 +158,17 @@ public class InitialQuestion {
 	}
 	public void updateLastActivityDate() {
 		this.lastActivityDate = new Date();
+	}
+	public String[] getUpvotingContributorIds() {
+		return upvotingContributorIds;
+	}
+	public void setUpvotingContributorIds(String[] upvotingContributorIds) {
+		this.upvotingContributorIds = upvotingContributorIds;
+	}
+	public String[] getDownvotingContributorIds() {
+		return downvotingContributorIds;
+	}
+	public void setDownvotingContributorIds(String[] downvotingContributorIds) {
+		this.downvotingContributorIds = downvotingContributorIds;
 	}
 }

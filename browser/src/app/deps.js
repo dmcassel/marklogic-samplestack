@@ -23,7 +23,9 @@ require.config({
     'highlightjs': 'deps/highlightjs/highlight.pack<%=options.min%>',
     'json': 'deps/requirejs-plugins/src/json<%=options.min%>',
     'text': 'deps/requirejs-plugins/lib/text<%=options.min%>',
-    'ng-tags-input': 'deps/ng-tags-input/ng-tags-input<%=options.min%>'
+    'ng-tags-input': 'deps/ng-tags-input/ng-tags-input<%=options.min%>',
+    'stacktrace-js':'deps/stacktrace-js/dist/stacktrace<%=options.min%>',
+    'jstzdetect': 'deps/jstzdetect/jstz<%=options.min%>'
     /* jshint ignore: end */
   },
 
@@ -39,7 +41,8 @@ require.config({
     'ng-markdown': { deps: ['angular', 'angular-sanitize'] },
     'angular-marked': { deps: ['angular'] },
     'highlightjs': { exports: 'hljs' },
-    'ng-tags-input': { deps: ['angular'] }
+    'ng-tags-input': { deps: ['angular'] },
+    'jstzdetect': { exports: 'jstz' }
   }
 });
 
@@ -51,8 +54,11 @@ define(
     'lodash',
     'angular',
 
+    'stacktrace-js',
     'marked',
     'highlightjs',
+    'jstzdetect',
+    'stacktrace-js',
     'ui-router',
     'state-helper',
     'ui-bootstrap',
@@ -65,12 +71,14 @@ define(
 
     '_marklogic/marklogic'
   ],
-  function (lodash, angular, marked, hljs) {
+  function (lodash, angular, stacktrace, marked, hljs, jstz) {
 
     // lodash and angular are made global as a convenience.
     window._ = lodash;
     window.angular = angular;
     window.marked = marked;
+    window.jstz = jstz;
+    window.stacktrace = stacktrace;
     marked.setOptions({
       gfm: true,
       highlight: function (code) {

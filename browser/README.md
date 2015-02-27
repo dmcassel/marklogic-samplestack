@@ -2,6 +2,7 @@
 
 > Understanding, Installing, running and developing the browser tier of marklogic-samplestack
 
+
 ## Understanding
 
 The Samplestack web application is built with AngularJS. It is built to run from a static web server and to access the Samplestack middle-tier via AJAX.
@@ -14,6 +15,13 @@ Conversely, *to unit test the webapp*, you need not be running the middle tier -
 
 
 ## Installing
+
+### Prerequisites
+
+To configure and develop the browser app for Samplestack, you need the following software:
+
+* Node.js, version 0.10 or later. See [nodejs.org](http://nodejs.org).
+* A global installation of the Node.js component [gulp](https://github.com/gulpjs/gulp).
 
 Before you begin, please ensure that [node.js](http://nodejs.org/) and [git](http://git-scm.com/) are installed. It is a good idea to update node.js if you have not installed a recent version, but it is believed that any 0.10 or 0.11 version will work.
 
@@ -32,18 +40,18 @@ The following instructions should allow you:
 * build it and run its unit tests;
 * visit the application in the browser;
 * (re)run the unit tests in the browser;
-* review the code-coverage report for the unit tests.
+* review the code-coverage report for the unit tests;
+* execute and report on end-to-end tests of the 3-tiered application
 
 ### One-Time Prerequisites Setup
 
 #### Global Utilities
 
-There are two node.js components that you must have installed **globally** on your machine: [bower](http://bower.io/) and [gulp](https://github.com/gulpjs/gulp)
+There is one node.js components that you must have installed **globally** on your machine: [gulp](https://github.com/gulpjs/gulp).
 
-Use npm, which should be installed with node.js, to install them:
+Use npm, which should be installed with node.js, to install it:
 
 ```bash
-(from-anywhere)> npm install -g bower
 (from-anywhere)> npm install -g gulp
 ```
 
@@ -58,16 +66,14 @@ In Windows, one way to do this is to launch a `Command Prompt` with elevated pri
 
 ### Installing the Webapp
 
-The first time you want to run the webapp, please follow these directions.  Also repea them any time you pull down an updated version of Samplestack from Github, as the dependencies which these steps install may have changed.
+The first time you want to run the webapp, please install the dependences via npm.  Also repeat this step any time you pull down an updated version of Samplestack from Github, as the dependencies which these steps install may have changed.
 
 We are installing various node.js utilities that are used in the build, and we are installing various browser libraries that are used by the webapp itself.  These command *should not* require elevated privileges. *Unless you **really know** why you're doing so*, **do not** use `sudo` or an elevated shell to execute them.
 
 *From the marklogic-samplestack directory:*
 
 ```bash
-marklogic-samplestack> cd browser
-marklogic-samplestack/browser> npm install
-marklogic-samplestack/browser> bower install
+marklogic-samplestack> npm install
 ```
 
 **If you get this far without errors, your Samplestack browser installation is complete.**
@@ -95,17 +101,15 @@ marklogic-samplestack/browser> gulp run
 
 From here, you are presented with a menu that points to three web servers, in order they are:
 
-* **BUILD server: http://localhost:3000**: This is the built application. Unlike the other services presented in the list, this one, the app itself, depends on the middle-tier application to be fully functional. See the [main Samplestack README](../README.md) for notes on using the application.
+* **BUILD server: http://localhost:3000**: This is the built application. Unlike the other services presented in the list, this one, the app itself, depends on the middle-tier application to be fully functional. **Use the login credentials `joe@example.com`, password `joesPassword` to view and search content restricted to the Contributor role.**
 * **UNIT TESTS: http://localhost:3001/unit-runner.html**: While the unit tests are executed *during* the build, they are not individually reported. This link allows you to re-run them in a web browser at any time, to see the individual test results, and even to expand each line item to see the code that comprsises each test.
 * **COVERAGE: http://localhost:3002/coverage**: This is a report of the code coverage of unit tests.  You can drill down into each part of the webapp by clicking on the rows of the report. As you drill down into individual files, you will see line-by-line color coding that represents how/if a given line or branch of the code has been executed by the unit tests.  **This is also a very handy way to browse the code itself.**
-
-Once you have the webapp running, please see the instructions in the [main README](../README.md) for login credentials and other end-user usage notes.
 
 ## "Live Coding" via Watch
 
 The following command do everything that the `run` command does, but additionally enters "watch mode".  In watch mode, changes you make to the application, its tests, or its documentation are instantly incorporate into the build, unit tests are rerun and documentation regenerated.
 
-*From the marklogic-samplestack/**browser** sub-directory:*
+*From the marklogic-samplestack directory:*
 
 ```bash
 marklogic-samplestack/browser> gulp watch
@@ -115,30 +119,66 @@ In many cases, watch mode also causes a browser tab/window that is on app, the c
 
 MacOS users, please see the note below about your watched files limit. If you don't follow the instructions it presents, you may get errors when you enter watch mode.
 
-## npm install Errors
+## End-To-End Testing
 
-If `npm install` has errors, the first thing to try is to simply re-run it. There are known issues with npm which may require one re-run. If the second run also fails, you may have a version of npm which was not reliable.  Try updating npm before rerunning the above install commands.
+End-to-end testing involves building the entire application (database, middle-tier and browser application), putting it in run-mode, and executing tests specifically designed to evaluate the functionality as a whole.
 
-> ```
-> from-anywhere> npm update -g npm
-> ```
+There are many moving parts to end-to-end testing of a three-tiered application. If any one of them, including the test environment(s) themselves isn't working perfectly, it will be apparent from the end-to-end testing (subject, of course, to specific tests being written to test features).
 
-## Temporary OSX Workaround for Watch Mode
+Such tests are set up by automating the process of getting things running, then (again, automatically) launching a browser (or browsers) and "pretending" to be
+a human being using the application.
 
-In general your "watch" process is faster if you raise the limit of the number
-of open files for your process or the system.  However, in normal cases, there
-is no harm (other than speed) to not raising the limit, because
-[gaze](https://github.com/shama/gaze) implements a different strategy when
-it reaches that limit.  However, at the present time two forces are combining
-to make the `watch` task problematic:
+Selenium a server that is used to drive browsers, and web driver is a protocol that is used by Selenium to do that. End-to-end tests make requests to selenium in order to execute specific operations in the browser and to find out what is displayed at any given time.
 
-1. OSX defaults to a very low limit
-2. gaze has a bug that is causing it to fail when that limit is reached.
+"OpenSauce" is a service that is made available for free by SauceLabs for open source software testing using *their* farm of machines with browsers and selenium instances, accessible in the cloud.
 
-Thus, while generally it's just a good idea to raise the limit, for now it's
-also mandatory on OSX.
+Samplestack is configured to either run Selenium locally or to access SauceLabs.
 
-To achive this, make or modify the file at `~/.launchd.conf` to have a line
+`gulp e2e` is the command that is used to execute end-to-end tests.  There are several flags which control how the tests are executed.
+
+* `--browser=[ie | ff | chrome | phantomjs]`: e.g. `browser=ie`. Used to specify a browser to launch **locally** along with an automatically launched local Selenium server. You must have Java installed to run Selenium. The default value is `chrome`.
+* `--sauce[={platorm-key} | =all | =supported(s)]`: specifies a specifc platform or set of platforms on which to execute tests remotely using SauceLabs. To run these tests, you must supply credentials. See `browser/credentials.js` for information on configuring Sauce credentials. The list of browser/operating system combinations that will be run if you specify "all" or "supported" is listed in `browser/options.js`. Any of the browsers configured to be runnable in that file may also be specified individually by key, e.g. `--sauce=win7-ie-10`. If both the `--browser` and `--sauce` flags are set, the task will fail. If `--sauce` is specified with no platform, then it is equivalent to `--sauce=supported`.
+* `--middle-tier=[java | external]`. If `java` is specified, then the middle tier automation code will be controlled by the task, such that a clean install of the Java middle-tier and database configuration will be performed and the middle tier will be started.  On the contrary, if `external` is specified, then the task will assume that a middle tier server and database have already been configured and launched and are listening on port 8090. The default is `external`.
+* `--broken="<comma-separated-tags>"`. Each tags is of the form `@tagname`. These are
+tags present in the feature files. If specified, only features/scenarios which match this
+specification will be executed. To specify NOT to match a tag, prefix with `~`. See example below regarding skipping tests that are known to be broken.
+
+A few of examples:
+
+```bash
+gulp e2e # or gulp e2e --middle-tier=external --browser=chrome
+```
+
+Runs the tests against locally installed Chrome with automatically configured local Selenium server, assuming the middle-tier has been launched in a separate process, and prints the results to the console.
+
+Please note: if you either do not specify the middle-tier flag pr specify `external`, you are responsible for having a Java middle-tier running and ready. You are also responsible for ensuring that
+your MarkLogic server has a clean/up-to-date Samplestack configuration and seed data. In other words, you should probably run the middle-tier teardown process if you're not sure of the state of your dataset/configuration.
+
+```bash
+gulp e2e --middle-tier=java --sauce --tags="~@broken"
+```
+
+This is **almost** the command that used by MarkLogic's nigthly regression system. It configures the MarkLogic server, launches the middle tier and executes the test suite against the list of supported browsers. It does not yet write to files and thus is not consumable by the test harness.
+
+Note on `~@broken`: always specify this flag unless you are interested in seeing tests run which
+are known to be broken. Such tests are also flagged in the feature files with issue id numbers, so
+that they may be executed individually based on the issue that covers the problem.
+
+**Note: to use SauceLabs tests, please add a hosts file entry (or other domain resolution) that points "samplestack.local" to 127.0.0.1 on your machine.**
+The reasons for this are documented in https://support.saucelabs.com/entries/27401240-Testing-with-a-localhost-server-and-some-browsers-can-t-load-my-website .
+
+## Node.js/npm Tips and Troubleshooting
+
+Please see [Node.js and npm Tips for Samplestack Development](https://github.com/marklogic/marklogic-samplestack/wiki/Node.js-and-npm-Tips-for-Samplestack-Development).
+
+## OSX Workaround for Watch Mode
+
+In general your "watch" process will be faster on Mac/OSX computers if you raise the limit of the number
+of open files for your process.  
+
+Additionally, there may be machines that report errors in `watch` mode saying that the maximum number of open files has been reached.
+
+To set the maxfiles limit for your system, make or modify the file at `~/.launchd.conf` to have a line
 reading:
 
 ```
@@ -147,3 +187,19 @@ limit maxfiles 16384 unlimited
 
 and then log out of your OSX session and log back in (or just restart your
 machine).
+
+## License
+
+Copyright © 2012-2015 MarkLogic
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

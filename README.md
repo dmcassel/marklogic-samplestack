@@ -1,164 +1,133 @@
 # marklogic-samplestack
 
-README for Version 1.0.0-EA3 (In Progress)
 
-Samplestack is a demo "Question and Answer" web application that shows you how to integrate MarkLogic into a three-tier application architecture (browser, application server, and database).
+<!--
+
+
+NO TRAVIS badge until things start to settle down in e2e tests
+
+***********************************************************************
+REMEMBER to change the branch name in this code when preparing releases
+***********************************************************************
+<div>
+<a target="_blank" href="https://travis-ci.org/marklogic/marklogic-samplestack">
+  <img hspace="15" align="right" src="https://travis-ci.org/marklogic/marklogic-samplestack.svg"></img>
+</a>
+</div>
+<div/>
+
+-->
+
+> Samplestack is a comprehensive sample application that demonstrates how to build an effective MarkLogic application.  Based on the idea of a "Question and Answer" website, Samplestack shows you how to integrate MarkLogic into a three-tier application architecture (browser, application server, and database).
+
+## README for Version 1.0.1
+
 
 This release features a middle tier for the Java Enterprise Developer, implemented using Java, Spring, and Gradle.
 
 The project includes the following major components:
-* Web/browser front end based on Angular.js
-* Middle appserver tier implemented in Java/Spring
-* Database tier hosted on MarkLogic
-* Gradle framework to drive build and configuration of the appserver and database tiers
-* Unit tests
+* MVC browser application implemented in [Angular.js](https://angularjs.org)
+* Middle appserver tier implemented in Java/[Spring](http://projects.spring.io/spring-framework/)
+* [MarkLogic](http://www.marklogic.com/) for the database tier
+* [Gradle](http://www.gradle.org/) framework to drive build and configuration of the appserver and database tiers
+* Unit and end-to-end tests
+
+A [Node.js](http://nodejs.org/) version of Samplestack that uses gulp automation will be coming soon.
 
 This README covers the following topics:
-* [Prerequisites](#prerequisites)
 * [Getting Started](#getting-started)
 * [Additional Information](#additional-information)
+* [Contributing](#contributing)
 * [License](#license)
-
-## Prerequisites
-To configure and use this application, you need the following software:
-* Java JDK 1.7 or 1.8
-* Latest MarkLogic 8.0 Nightly Build (see instructions [below](#getting-started))
-* Node.js, version 0.10 or later. See [nodejs.org](http://nodejs.org).
-* A global installation of the Node.js components [bower](http://bower.io) and [gulp](https://github.com/gulpjs/gulp). For details, see [Global Utilities](browser/README.md#global-utilities) in the [browser README](browser/README.md).
-
-The setup instructions assume you have the `git`, `javac`, `node`, `bower`, and `gulp` commands on your path.
-
-The setup procedure may install additional software, such as Gradle and Angular.
 
 ## Getting Started
 
-*note for development branch work:*
-
-This README is for a development branch that does not work with any released version of MarkLogic
-
-Use Latest MarkLogic nightly for your platform:
-
-http://root.marklogic.com/nightly/default.xqy?branch=HEAD
-
-Java Client API needs snapshot available on commit [481c2b045ad5bc6f0549ad4e60e44b7cec5232a6](https://github.com/marklogic/java-client-api/commit/481c2b045ad5bc6f0549ad4e60e44b7cec5232a6) from 11/5/2014.  This should be installed
-automatically but may require gradle or maven cache cleaning.
-
-_**If** you are using OSX and have access to the nightly builds site,_ an MLVM script is available to fully configure the Java Middle Tier, including the download/installation of the latest nightly, dowload/loading of seed data and initialization and starup of of the middle-tier:
-
-https://github.com/marklogic/marklogic-samplestack/blob/develop/appserver/java-spring/cleanstart.sh
-
-If you are not using OSX, the script may be helpful in understanding the steps, should you wish to examine it and/or adapt it for your platform.
-
-*end note*
-
-
-Follow this procedure to set up Samplestack in your environment.
-
-1. Install MarkLogic 8 Early Access. See http://ea.marklogic.com/download.
-
-2. Start MarkLogic. For details, see the [MarkLogic Installation Guide](http://docs.marklogic.com/guide/installation/procedures#id_92457).
-
-3. Clone this repository. For example, run the following command:  
-
-    ```
-    git clone https://github.com/marklogic/marklogic-samplestack
-    ```
-4. [Set up the middle and database tiers](#setting-up-the-middle-and-database-tiers).
-
-5. [Set up the browser tier](#setting-up-the-browser-tier).
-
-
-### Setting Up the Middle and Database Tiers
-The setup assume you have MarkLogic Server running on your localhost and that your Admin user credentials are admin:admin. To change this, modify `appserver/java-spring/gradle.properties`.
-
-To install required software, configure, and build the Java middle tier and database tier of Samplestack, run the following commands from the root of your cloned repository:
+To start, clone this repository. For example, run the following command:  
 
 ```
-cd appserver/java-spring
-./gradlew appserver
+git clone https://github.com/marklogic/marklogic-samplestack
 ```
 
-This command will not return. When you see output of the following form, the middle tier is running, and you can proceed with the browser tier setup:
-```
-Started Application in X seconds...
->Building 85% > :bootRun
-```
+Then, launch each of the tiers to get a feel for Samplestack's 3-tiered architecture (from the bottom-up):
 
-Successfully completing this step does the following:
-* Bootstraps the middle tier.
-* Builds the Java middle tier components.
-* Loads the database with sample data.
-* Starts up the middle tier and MarkLogic application services.
+1) **Database**
 
-The middle tier App Server runs on port 8090 by default. Visit http://localhost:8001 if you need to administer the database.
+This version of Samplestack is intended to run with MarkLogic 8.0
 
-*For more detail, see the [README in the appserver/java-spring directory](appserver/java-spring/README.md)*
+2) **Middle Tier - Application Server**
 
-### Setting Up the Browser Tier
-Use the following procedure to install required software and bootstrap the Samplestack browser tier. You should already have the middle and database tiers running.
+You can choose to run/examine one of two middle tier application servers.  Each of these will use the same MarkLogic backend configuration and the same MVC browser application.
 
-For detailed instructions and troubleshooting, see the [README in the browser directory](browser/README.md).
+* [Set up the Java middle tier and database tiers with gradle](appserver/java-spring/README.md)  (Available now)
+* [Set up the Node middle and database tiers with gulp](appserver/node-express/README.md) (Available in future release, under development)
 
-**NOTE:** If you are on Windows, you must use a Windows command shell, not Cygwin.
+3) **Browser Application**
 
-**Important**: In order to run the application you must be running *both* the middle-tier **and** the browser webapp.  To do this, **use a separate terminal window for the steps below**.
+The browser application is delivered in two forms:
 
-1. Go to the browser subdirectory of the project:
-
-    ```
-    cd browser
-    ```
-2. Install the browser application.
-
-    ```
-    npm install
-    bower install
-    ```
-3. Run the following command to build the web application, run its unit tests, and bring up the required execution environment:
-
-    ```
-    gulp run
-    ```
-
-When the setup successfully completes, you should see information about the available web servers running the application. The `gulp run` command does not return.
-
-### Running the Application
-Once you have the database, appserver, and browser tiers of the application configured and running, navigate to the following URL in your browser to explore the application:
-
-`http://localhost:3000/`
-
-### Restarting the Two Tiers
-
-* To stop the middle tier App Server, press `Control+C`
-* To restart,
-```
-cd marklogic-samplestack/appserver/java-spring
-./gradlew bootrun
-```
-
-* To stop the browser tier, press `Control+C`
-* To restart,
-```
-cd marklogic-samplestack/browser
-gulp run
-```
-
-### Next Steps
-* Explore the application running at http://localhost:3000.
-  * Use the login credentials `joeUser@marklogic.com`, password `joesPassword` to view and search content restricted to the Contributor role.
-* Explore the README in the database, appserver and browser directories for details on each tier.
-* View the database configuration by visiting http://localhost:8001.
-* Explore the database contents using Query Console. Go to http://localhost:8000/qconsole, select the `samplestack` database, and click Explore.
+* The Java middle tier hosts a pre-built version; or
+* [Set up the Angular.js/Gulp development environment](browser/README.md) (Available now)
 
 ## Additional Information
 For more information, see the following:
-* README for the [database](database/README.md), [appserver](appserver/java-spring/README.md), and [browser](browser/README.md) tier.
+* READMEs for the [database](database/README.md), [Java appserver](appserver/java-spring/README.md), and [Angular.js browser](browser/README.md) tiers.
 * [Samplestack wiki](https://github.com/marklogic/marklogic-samplestack/wiki).
-* [MarkLogic product documentation](http://docs.marklogic.com).
+* [MarkLogic product documentation](http://docs.marklogic.com) for further details on MarkLogic Server and the Client APIs.
+* MarkLogic [Developer Community](http://developer.marklogic.com/) site with tutorials, blogs, and more.
+* Full [Documentation](http://docs.marklogic.com/guide/ref-arch) on the Reference Architecture and Samplestack.
+* Take [Free MarkLogic Training](http://www.marklogic.com/services/training).
+Some of the courses cover how to build Samplestack.
+
+## Reference Architecture Introduction
+
+Samplestack is an instantiation of MarkLogic’s Reference Architecture. It demonstrates how to structure three-tiered MarkLogic applications for production:
+
+* MarkLogic plays the role of database in Samplestack’s three-tier architecture. Samplestack shows how to configure MarkLogic to ingest, store, and manipulate documents. With the project comes tooling and configuration files to get MarkLogic primed to expose robust search and data services.
+
+* The middle tier brokers the data between the database and the browser-based web application, coordinates integration with additional services (LDAP), locally optimizes applicationdatabase communications, and enforces business rules. There will be two versions of Samplestack which you can explore based on your preference. One version features a Java middle tier with a Spring Framework and Gradle automation. There will also be a JavaScriptNode.js implementation with gulp automation.
+
+* The web-based front-end is a Model-View-Controller browser application which drives workflow using the business services exposed by the middle-tier and presents the user interface. It is implemented as an Angular.js application.
+
+## Application Overview
+
+The sample application itself is centered around the idea of a Question and Answer site. It is a searchable, transactional, content-rich web application. Users of the application participate in the crowd-sourced knowledge community by asking questions, submitting answers, commenting, and voting. Search is a rich experience with interactive facets and parameters which enable users to narrow in on the answers they seek. The initial seed dataset is an extract of content from the popular [Stack Overflow](http://stackoverflow.com) website.  Their archives are made available under [CC BY-SA](http://creativecommons.org/licenses/by-sa/3.0/) and comprise the seed data for Samplestack.
+
+Each of the features in Samplestack demonstrates an important concept for developers building on MarkLogic:
+
+Samplestack Feature | MarkLogic Concept
+------------ | -------------
+Full-text Search | Indexes, query styles
+User records and Question documents | Data Model for POJOs and JSON.
+Users and Roles (log in, log out) | Security (authentication and authorization)
+Restricted Content | Role-based Permissions
+Facets | Search constraints, analytics
+Ask, Answer, Comment | Document updates
+Voting | Updates impact sorting
+Accepted Answers and Reputation | Transactional model, data integrity
+
+Coming soon: Related tags — demonstration of semantics with the use of RDF triples and SPARQL.
+
+## Contributing
+
+Please see our [contributing guidelines](./CONTRIBUTING.md).
+
+## Support
+
+Samplestack is maintained by MarkLogic Engineering and distributed under the
+[Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). It is not
+designed for use in production. Everyone is encouraged to file bug reports,
+feature requests, and pull requests through GitHub. This input is critical and
+will be carefully considered, but we can’t promise a specific resolution or
+timeframe for any request. In addition, MarkLogic provides technical support
+for release tags of Samplestack to licensed customers under the terms outlined
+in the [Support
+Handbook](http://www.marklogic.com/files/Mark_Logic_Support_Handbook.pdf) For
+more information or to sign up for support, visit
+[help.marklogic.com](http://help.marklogic.com).
 
 ## License
 
-Copyright © 2014 MarkLogic
+Copyright © 2012-2015 MarkLogic
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

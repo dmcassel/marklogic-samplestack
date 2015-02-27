@@ -1,7 +1,6 @@
 define([
-  'testHelper',
   'mocks/index'
-], function (helper, mocks) {
+], function (mocks) {
 
   return function () {
     describe('ssSearch', function () {
@@ -25,23 +24,26 @@ define([
         var self = this;
         var s = ssSearch.create({
           criteria: { constraints: { dateStart: {
-            value: mlUtil.moment('2014-08-01')
+            value: mlUtil.moment('2014-08-01T00:00:00.000-05:00')
           } } }
         });
         $httpBackend.expectPOST(
           '/v1/search',
           {
-            query: {
-              qtext: ['', 'sort:relevance'],
-              'and-query': {
-                queries: [ {
-                  'range-constraint-query': {
-                    'constraint-name': 'lastActivity',
-                    'value': '2014-08-01T00:00:00.000',
-                    'range-operator': 'GE'
-                  }
-                } ]
-              }
+            search: {
+              qtext: ['', 'sort:active'],
+              query: {
+                'and-query': {
+                  queries: [ {
+                    'range-constraint-query': {
+                      'constraint-name': 'lastActivity',
+                      'value': mlUtil.moment('2014-08-01T00:00:00.000-05:00'),
+                      'range-operator': 'GE'
+                    }
+                  } ]
+                }
+              },
+              timezone: window.jstz.determine().name()
             }
           }
         ).respond(500);
@@ -62,16 +64,19 @@ define([
         $httpBackend.expectPOST(
           '/v1/search',
           {
-            query: {
-              qtext: ['', 'sort:relevance'],
-              'and-query': {
-                queries: [ {
-                  'value-constraint-query': {
-                    'constraint-name': 'resolved',
-                    'boolean': true
-                  }
-                } ]
-              }
+            search: {
+              qtext: ['', 'sort:active'],
+              query: {
+                'and-query': {
+                  queries: [ {
+                    'value-constraint-query': {
+                      'constraint-name': 'resolved',
+                      'text': true
+                    }
+                  } ]
+                }
+              },
+              timezone: window.jstz.determine().name()
             }
           }
         ).respond(500);

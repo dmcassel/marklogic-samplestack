@@ -1,53 +1,53 @@
 # Contributing to Samplestack
 
-Samplestack welcomes new contributors. This document will guide you through the 
+Samplestack welcomes new contributors. This document will guide you through the
 process.
 
  - [Question or Problem?](#question)
  - [Issues and Bugs](#issue)
  - [Feature Requests](#feature)
  - [Submission Guidelines](#submit)
- 
+
 ## <a name="question"></a> Got a Question or Problem?
 
-If you have questions about how to use Samplestack, you can ask on 
-[StackOverflow](http://stackoverflow.com/tags/marklogic), tagging the question 
+If you have questions about how to use Samplestack, you can ask on
+[StackOverflow](http://stackoverflow.com/tags/marklogic), tagging the question
 with MarkLogic.
 
 ## <a name="issue"></a> Found an Issue?
 If you find a bug in the source code or a mistake in the documentation, you can help us by
-submitting an issue to our [GitHub Issue Tracker][issue tracker]. Even better 
+submitting an issue to our [GitHub Issue Tracker][issue tracker]. Even better
 you can submit a Pull Request with a fix for the issue you filed.
 
 ## <a name="feature"></a> Want a Feature?
-You can request a new feature by submitting an issue to our 
-[GitHub Issue Tracker][issue tracker].  If you would like to implement a new 
-feature then first create a new issue and discuss it with one of our project 
+You can request a new feature by submitting an issue to our
+[GitHub Issue Tracker][issue tracker].  If you would like to implement a new
+feature then first create a new issue and discuss it with one of our project
 maintainers.
 
 ## <a name="submit"></a> Submission Guidelines
 
 ### Submitting an Issue
 If your issue appears to be a bug, and hasn't been reported, open a new issue.
-Providing the following information will increase the chances of your issue 
+Providing the following information will increase the chances of your issue
 being dealt with quickly:
 
 * **Overview of the Issue** - if an error is being thrown a stack trace helps
 * **Motivation for or Use Case** - explain why this is a bug for you
 * **Environment** - Mac, windows? Firefox, Chrome? details help
-* **Suggest a Fix** - if you can't fix the bug yourself, perhaps you can point 
+* **Suggest a Fix** - if you can't fix the bug yourself, perhaps you can point
 to what might be causing the problem (line of code or commit)
 
 ### Submitting a Pull Request
 
 #### Fill in the CLA
 
-Before we can accept your pull request, you need to sign the [Contributor 
-License Agreement](http://developer.marklogic.com/products/cla). 
+Before we can accept your pull request, you need to sign the [Contributor
+License Agreement](http://developer.marklogic.com/products/cla).
 
 #### Fork Samplestack
 
-Fork the project [on GitHub](https://github.com/marklogic/marklogic-samplestack/fork) 
+Fork the project [on GitHub](https://github.com/marklogic/marklogic-samplestack/fork)
 and clone your copy.
 
 ```sh
@@ -118,11 +118,6 @@ $ git fetch upstream
 $ git rebase upstream/develop
 ```
 
-
-#### Test your code
-
-*insert testing instructions here*
-
 #### Push your changes
 
 ```sh
@@ -131,12 +126,12 @@ $ git push origin my-feature-branch
 
 #### Submit the pull request
 
-Go to https://github.com/username/marklogic-samplestack and select your feature 
+Go to https://github.com/username/marklogic-samplestack and select your feature
 branch. Click the 'Pull Request' button and fill out the form.
 
-Pull requests are usually reviewed within a few days. If you get comments that 
-need to be to addressed, apply your changes in a separate commit and push that 
-to your feature branch. Post a comment in the pull request afterwards; GitHub 
+Pull requests are usually reviewed within a few days. If you get comments that
+need to be to addressed, apply your changes in a separate commit and push that
+to your feature branch. Post a comment in the pull request afterwards; GitHub
 does not send out notifications when you add commits to existing pull requests.
 
 That's it! Thank you for your contribution!

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.Locale;
 
 import org.skyscreamer.jsonassert.JSONAssert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -41,8 +40,6 @@ import com.marklogic.samplestack.domain.QnADocument;
  * Share implementation for QnADocumentController unit and integration tests.
  */
 public class QnADocumentControllerTestImpl extends ControllerTests {
-
-	Logger logger = LoggerFactory.getLogger(QnADocumentControllerTestImpl.class);
 
 	private QnADocument answeredQuestion;
 
@@ -70,7 +67,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	
 
 	public void testLoggedInCanSearch() throws UnsupportedEncodingException, Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 
 		String questionResponse = this.mockMvc
 				.perform(get("/v1/questions")
@@ -81,7 +78,6 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 		logger.debug(questionResponse);
 		JSONAssert.assertEquals("{snippet-format:\"snippet\"}", questionResponse, false);
 
-		
 		questionResponse = this.mockMvc
 				.perform(post("/v1/search")
 				.with(csrf())
@@ -93,7 +89,6 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 				.getContentAsString();
 		logger.debug(questionResponse);
 		JSONAssert.assertEquals("{snippet-format:\"snippet\"}", questionResponse, false);
-	
 	}
 
 
@@ -119,14 +114,14 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	
 	public void testAskMalformedQuestions() throws JsonProcessingException,
 			Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 
 		// send a contributor to the questions endpoint
 		this.mockMvc.perform(
 				post("/v1/questions").with(csrf()).session((MockHttpSession) session)
 						.locale(Locale.ENGLISH)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(mapper.writeValueAsString(Utils.joeUser)))
+						.content(mapper.writeValueAsString(Utils.testC1)))
 				.andExpect(status().isBadRequest());
 
 		@SuppressWarnings("unused")
@@ -139,7 +134,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	 */
 	
 	public void testAskQuestion() throws JsonProcessingException, Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 
 		askQuestion();
 
@@ -166,7 +161,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	
 	public void commentOnQuestion() throws Exception {
 
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		askQuestion();
 
 		this.mockMvc
@@ -183,7 +178,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 
 	private void answerQuestion() throws Exception {
 		if (answeredQuestion == null) {
-			login("joeUser@marklogic.com", "joesPassword");
+			login("testC1@example.com", "c1");
 
 			String docId = askedQuestion.getId().replace(".json", "");
 			logger.debug(docId);
@@ -216,9 +211,8 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 
 		JsonNode answer = answeredQuestion.getJson().get("answers").get(0);
 		assertEquals("answered question has an answer",
-				Utils.joeUser.getUserName(), answer.get("owner")
+				Utils.testC1.getUserName(), answer.get("owner")
 						.get("userName").asText());
-
 	}
 
 	/* (non-Javadoc)
@@ -227,7 +221,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	
 	
 	public void commentOnAnswer() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		askQuestion();
 		answerQuestion();
 		String answerId = answeredQuestion.getJson().get("answers").get(0)
@@ -251,17 +245,18 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	 */
 	
 	
-	public void voteUpQuestion() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+	public JsonNode voteUpQuestion() throws Exception {
+		login("testC1@example.com", "c1");
 		askQuestion();
-		this.mockMvc
+		MockHttpServletResponse result = this.mockMvc
 				.perform(
 						post("/v1/questions/" + this.askedQuestion.getId() + "/upvotes")
 								.with(csrf())
 								.session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{}")).andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
+				.andReturn().getResponse();
+		return mapper.readValue(result.getContentAsString(), JsonNode.class);
 	}
 
 	/* (non-Javadoc)
@@ -269,39 +264,48 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	 */
 	
 	
-	public void voteDownQuestion() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+	public JsonNode voteDownQuestion() throws Exception {
+		login("testC1@example.com", "c1");
 		askQuestion();
-		this.mockMvc
+		MockHttpServletResponse result = this.mockMvc
 				.perform(
 						post("/v1/questions/" + this.askedQuestion.getId() + "/downvotes")
 								.with(csrf())
 								.session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{}")).andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
+				.andReturn().getResponse();
+		return mapper.readValue(result.getContentAsString(), JsonNode.class);
 	}
 
 	/* (non-Javadoc)
 	 * @see com.marklogic.samplestack.unit.web.QnAControllerTests#voteUpAnswer()
 	 */
-	
-	
-	public void voteUpAnswer() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+	public JsonNode voteUpAnswer() throws Exception {
 		askQuestion();
 		answerQuestion();
 		JsonNode answer = answeredQuestion.getJson().get("answers").get(0);
 		String answerId = answer.get("id").asText();
-
-		this.mockMvc
+		MockHttpServletResponse result = this.mockMvc
 				.perform(
 						post("/v1/questions/" + this.askedQuestion.getId() + "/answers/" + answerId + "/upvotes")
 								.with(csrf())
 								.session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{}")).andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
+				.andReturn().getResponse();
+		logout();
+		login("testA1@example.com", "a1");
+
+		result = this.mockMvc
+				.perform(
+						post("/v1/questions/" + this.askedQuestion.getId() + "/answers/" + answerId + "/upvotes")
+								.with(csrf())
+								.session((MockHttpSession) session)
+								.contentType(MediaType.APPLICATION_JSON)
+								.content("{}")).andExpect(status().isCreated())
+				.andReturn().getResponse();
+		return mapper.readValue(result.getContentAsString(), JsonNode.class);
 	}
 
 	/* (non-Javadoc)
@@ -309,14 +313,14 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	 */
 	
 	
-	public void voteDownAnswer() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+	public JsonNode voteDownAnswer() throws Exception {
+		login("testC1@example.com", "c1");
 		askQuestion();
 		answerQuestion();
 		JsonNode answer = answeredQuestion.getJson().get("answers").get(0);
 		String answerId = answer.get("id").asText();
 
-		this.mockMvc
+		MockHttpServletResponse result = this.mockMvc
 				.perform(
 						post("/v1/questions/" +
 								this.askedQuestion.getId() + 
@@ -327,7 +331,8 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 								.session((MockHttpSession) session)
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{}")).andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString();
+				.andReturn().getResponse();
+		return mapper.readValue(result.getContentAsString(), JsonNode.class);
 	}
 
 	/* (non-Javadoc)
@@ -336,7 +341,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	
 	
 	public void testAcceptAnswer() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		askQuestion();
 		answerQuestion();
 
@@ -345,10 +350,10 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 		JsonNode answer = answeredQuestion.getJson().get("answers").get(0);
 		String firstAnswerId = answer.get("id").asText();
 
-		login("maryAdmin@marklogic.com", "marysPassword");
+		login("testA1@example.com", "a1");
 		failAcceptQuestion(docId, firstAnswerId);
 
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		QnADocument acceptedQuestion = succeedAcceptQuestion(docId,
 				firstAnswerId);
 
@@ -389,7 +394,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 	 */
 	
 	public void testAnonymousAccessToAccepted() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		askQuestion();
 		answerQuestion();
 
@@ -416,7 +421,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 		assertEquals("Only stock acceped question for anonymous. ", 2, results.get("results")
 				.size());
 
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 
 		this.mockMvc
 				.perform(
@@ -444,7 +449,7 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 
 
 	public void badUrlCommentThrows404() throws Exception {
-		login("joeUser@marklogic.com", "joesPassword");
+		login("testC1@example.com", "c1");
 		this.mockMvc
 				.perform(
 						post("/v1/questions/soqnotaquestion22138139/answers/soa22141114/comments")
@@ -453,6 +458,41 @@ public class QnADocumentControllerTestImpl extends ControllerTests {
 								.contentType(MediaType.APPLICATION_JSON)
 								.content("{\"text\":\"no comment.\"}"))
 				.andExpect(status().isNotFound());
+	}
+
+
+	/**
+	 * Support for timezone is an extra key from the browser layer.
+	 * @throws Exception 
+	 * @throws JsonProcessingException
+	 */
+	public MockHttpServletResponse testIncludeTimezone(String queryResource) throws JsonProcessingException, Exception {
+
+		JsonNode testTimezoneQuery = getTestJson(queryResource);
+
+		login("testC1@example.com", "c1");
+
+		MockHttpServletResponse result = this.mockMvc
+				.perform(
+						post("/v1/search").with(csrf()).session((MockHttpSession) session)
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(mapper.writeValueAsString(testTimezoneQuery)))
+				.andExpect(status().isOk()).andReturn().getResponse();
+
+		return result;
+	}
+
+
+	public void testBadTimezone() throws JsonProcessingException, Exception {
+		JsonNode testTimezoneQuery = getTestJson("queries/test-bad-timezone-query.json");
+		
+		this.mockMvc
+				.perform(
+						post("/v1/search").with(csrf()).session((MockHttpSession) session)
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(mapper.writeValueAsString(testTimezoneQuery)))
+				.andExpect(status().isBadRequest());
+	
 	}
 
 }

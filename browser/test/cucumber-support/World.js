@@ -1,141 +1,110 @@
 // this file adds global variables -- not generally a good idea but for
 // cucumber tests it's handy
 var path = require('path');
-var _ = require('lodash');
+global._ = require('lodash');
 global.q = require('q');
 var chai = require('chai');
 var chaiAsPromised = require('chai-as-promised');
 chai.use(chaiAsPromised);
-chai.should();
-// webdriver promises do not derive from Object.prototype, thus `should`
-// cannot influence them
-// chai.should();
 global.expect = chai.expect;
-
-global.ptor = require('protractor').getInstance();
-ptor.ignoreSynchronization = false;
 
 var util = require('util');
 
-function PageBase () {}
+var users = require('./configuration/users');
 
 var pages = {};
 
+var self;
+
+var currentPage;
+
+browser.getCapabilities().then(function (cap) {
+  browser.caps = cap.caps_;
+});
+
 function World (callback) {
+  self = this;
   this.pages = pages;
-  this.currentPage = null;
   callback(this);
 }
 
-function addPage (spec) {
-  var Page = spec.constructor;
-  util.inherits(Page, PageBase);
-  pages[spec.name] = new Page();
-  _.forEach(spec.aliases, function (alias) {
-    pages[alias] = pages[spec.name];
-  });
-}
+var PageBase = require('./page-objects/PageBase');
 
-World.addPage = addPage;
+Object.defineProperty(World.prototype, 'currentPage', {
+  get: function () {
+    return currentPage;
+  },
+  set: function (page) {
+    currentPage = page;
+  }
+});
 
-World.prototype.logout  = function () {
-  return this.userName.then(function (name) {
-    if (name) {
-      element(by.className('ss-user-info-displayName')).click();
-      return element(by.css('button')).click();
-    }
+World.addPage = function (Page) {
+  var page = PageBase.instantiate(Page);
+  pages[Page.pageName] = page;
+  _.forEach(Page.aliases, function (alias) {
+    pages[alias] = page;
   });
 };
 
-
-Object.defineProperty(World.prototype, 'pageTitle', {
-  get: function () {
-    var title = ptor.getTitle();
-    return title;
-  }
-});
-
-Object.defineProperty(World.prototype, 'userName', {
-  get: function () {
-    var el = element(by.className('ss-user-info-display-name'));
-    return el.isElementPresent()
-    .then(
-      function (isPresent) {
-        if (isPresent) {
-          return el.getText().then(function (text) {
-            return text.replace(/ \[$/, '');
-          });
-        }
-        else {
-          return null;
-        }
-      },
-      function (err) {
-        console.log('error!');
-        console.log(err);
-      }
-    );
-  }
-});
-
-
-
-
-World.prototype.go = function (page) {
-  // console.log(ptor.waitForAngular.toString());
-  // var deferred = q.defer();
-  this.currentPage = page;
-  return ptor.get(
-    page.url
+World.prototype.go = function (page, suffix) {
+  var curPage = self.currentPage;
+  var url = page.url + (suffix ? suffix : '');
+  var promise = curPage ?
+      browser.setLocation(url) :
+      browser.get(url);
+  return promise.then(
+    function () {
+      self.currentPage = page;
+      return page;
+    }
   );
-  // .then(
-  //   function () {
-  //     console.log('gonna wait');
-  //     return ptor.waitForAngular();
-  //   }
-  // );
-  
-  //   function () {
-  //     (deferred.resolve);
-  //     // )
-  //     // setTimeout(function () { deferred.resolve(); }, 5000);
-  //   }
-  // );
-  // return deferred.promise;
-  // .then(function () {
-  //   return ptor.getCurrentUrl();
-  // });
-  //   function () {
-  //   console.log('gonna wait');
-  //   var promise = ptor.waitForAngular();
-  //   console.log('made promise');
-  //   return promise;
-  //   // return ptor.waitForAngular().then(
-  //   //   function () {
-  //   //     console.log('waited');
-  //   //
-  //   //   },
-  //   //   function (err) {
-  //   //     console.log('err: ' + err);
-  //   //   }
-  //   // );
-  // });
-  // return ptorPage;
-  // ptor.waitForAngular();
-  // return ptor.wait();
-  //
-  // var ptorPage = ptor.get(page.url);
-  // var deferred = q.defer();
-  // q.call(function () {
-  //   ptor.waitForAngular(function () {
-  // this.currentPage = page;
-  //
-  // return ptorPage;
-    // deferred.resolve(ptorPage);
-    // });
-  // });
-  //
-  // return deferred.promise;
+};
+
+var notifyOk = function (next) {
+  return function () {
+    next();
+  };
+};
+
+World.prototype.notifyOk = notifyOk;
+
+World.prototype.authenticate = function () {
+  var goPage;
+  if (!self.currentPage) {
+    goPage = self.go(self.pages.default);
+  }
+
+  return q.when(goPage)
+    .then(function () {
+      return self.currentPage.isLoggedIn;
+    })
+    .then(function (isLoggedIn) {
+      if (isLoggedIn) {
+        return;
+      }
+      else {
+        return self.currentPage.login(
+          users.Joe.userName, users.Joe.password
+        );
+      }
+    });
+};
+
+World.prototype.authenticateAs = function (userName, password) {
+  var goPage;
+  if (!self.currentPage) {
+    goPage = self.go(self.pages.default);
+  }
+
+  return q.when(goPage).then(function () {
+    if (userName) {
+      return self.currentPage.loginIfNecessary(userName, password);
+    }
+    else {
+      return self.currentPage.logoutIfNecessary();
+    }
+  });
 };
 
 var setPrepareStackTrace = function (isOn) {

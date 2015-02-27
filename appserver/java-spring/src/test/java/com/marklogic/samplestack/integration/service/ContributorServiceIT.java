@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,9 +60,9 @@ public class ContributorServiceIT extends MarkLogicIntegrationIT {
 		Utils.compareContributors("Compare simple store and retrieve", c1, c2);
 
 		StringQueryDefinition qdef = new StringQueryDefinitionImpl("contributors");
-		qdef.setCriteria("cgreer@marklogic.com");
+		qdef.setCriteria("cgreer@example.com");
 		Contributor contributor = contributorService.search(qdef, 1).iterator().next();
-		assertEquals("Retrieved one conributor", "cgreer@marklogic.com", contributor.getUserName());
+		assertEquals("Retrieved one conributor", "cgreer@example.com", contributor.getUserName());
 
 		PojoPage<Contributor> contributorPage = contributorRepository.readAll(1);
 		@SuppressWarnings("unused")

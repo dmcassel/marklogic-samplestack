@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,21 +53,21 @@ public class TagsServiceIT extends MarkLogicIntegrationIT {
 	TagsService tagsService;
 
 	@Test
-	public void testTagSearch() throws JsonProcessingException, JSONException {
+	public void testTagSearchWithForTag() throws JsonProcessingException, JSONException {
 
 		ObjectNode topNode = mapper.createObjectNode();
 		ObjectNode combinedQueryNode = topNode.putObject("search");
-		combinedQueryNode.put("qtext", "tag:ada");
-		
+		ArrayNode qtextNode = combinedQueryNode.putArray("qtext");
+		qtextNode.add("tag:test-data-tag");
+
 		ObjectNode results;
 		logger.debug("Query: " + mapper.writeValueAsString(topNode));
 		results = tagsService.getTags(ClientRole.SAMPLESTACK_CONTRIBUTOR,
-					topNode, 1, 1);
+					"ada", topNode, 1, 1);
 		logger.debug("Result: " + mapper.writeValueAsString(results));
 		JSONAssert.assertEquals("{values-response:{name:\"tags\",type:\"xs:string\",distinct-value:[{frequency:2,_value:\"ada\"}]}}", mapper.writeValueAsString(results), false);
-
 	}
-	
+
 	@Test
 	public void testTagTwoSearch() throws JsonProcessingException, JSONException {
 
@@ -75,13 +75,14 @@ public class TagsServiceIT extends MarkLogicIntegrationIT {
 		ObjectNode topNode = mapper.createObjectNode();
 		ObjectNode combinedQueryNode = topNode.putObject("search");
 		ArrayNode qtextNode = combinedQueryNode.putArray("qtext");
+		qtextNode.add("tag:test-data-tag");
 		qtextNode.add("tag:ada");
 		qtextNode.add("\"word abyss\"");
 
 		ObjectNode results;
 		logger.debug("Query: " + mapper.writeValueAsString(topNode));
 		results = tagsService.getTags(ClientRole.SAMPLESTACK_CONTRIBUTOR,
-					topNode, 1, 1);
+					null, topNode, 1, 1);
 		logger.debug("Result: " + mapper.writeValueAsString(results));
 		JSONAssert.assertEquals("{values-response:{name:\"tags\",type:\"xs:string\",distinct-value:[{frequency:2,_value:\"ada\"}]}}", mapper.writeValueAsString(results), false);
 
@@ -92,7 +93,7 @@ public class TagsServiceIT extends MarkLogicIntegrationIT {
 
 		ObjectNode results;
 		results = tagsService.getTags(ClientRole.SAMPLESTACK_CONTRIBUTOR,
-					null, 1, 5);
+					null, null, 1, 5);
 		logger.debug("Result: " + mapper.writeValueAsString(results));
 		assertEquals("Size of results for all tags: ", results.get("values-response").get("distinct-value").size(), 5L);
 
@@ -111,7 +112,7 @@ public class TagsServiceIT extends MarkLogicIntegrationIT {
 							"{\"search\":{\"qtext\":\"tag:test-data-tag\",\"query\":{\"word-constraint-query\":{\"constraint-name\":\"tag\",\"text\":\"cloj*\"}}}}",
 							JsonNode.class);
 			results = tagsService.getTags(ClientRole.SAMPLESTACK_CONTRIBUTOR,
-					query, 1, 1);
+					"clo", query, 1, 1);
 
 			logger.debug("Query Results:" + mapper.writeValueAsString(results));
 		} catch (IOException e) {

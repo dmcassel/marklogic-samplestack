@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,13 @@ import com.marklogic.samplestack.exception.SamplestackNotFoundException;
 import com.marklogic.samplestack.exception.SamplestackSearchException;
 import com.marklogic.samplestack.web.JsonHttpResponse;
 
-@ControllerAdvice
 /**
  * Configures customizations for mapping application
  * exceptions to HTTP responses.
  * Spring automatically weaves this class into the
  * web application.
  */
+@ControllerAdvice
 public class ExceptionAdvice {
 
 	@Autowired

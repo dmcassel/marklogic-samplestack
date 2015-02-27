@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,11 +39,13 @@ public class MockContributorAddOnService implements ContributorService {
 	@Override
 	public Contributor getByUserName(String userName) {
 		// for one real values test in login
-		if (userName.equals("joeUser@marklogic.com")) {
-			return Utils.joeUser;
+		if (userName.equals("testC1@example.com")) {
+			return Utils.testC1;
 		} else {
 			Contributor newContributor = new Contributor();
 			newContributor.setUserName(userName);
+			newContributor.setId("whyyoucare");
+			newContributor.setVoteCount(0L);
 			return newContributor;
 		}
 	}
@@ -75,6 +77,11 @@ public class MockContributorAddOnService implements ContributorService {
 
 	@Override
 	public Contributor read(String id) {
+		return repo.read(id);
+	}
+	
+	@Override
+	public Contributor read(String id, Transaction transaction) {
 		return repo.read(id);
 	}
 

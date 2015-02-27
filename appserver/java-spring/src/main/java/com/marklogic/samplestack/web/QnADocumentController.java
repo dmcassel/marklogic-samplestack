@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.marklogic.samplestack.web;
 
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,12 +33,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.samplestack.domain.Contributor;
 import com.marklogic.samplestack.domain.InitialQuestion;
 import com.marklogic.samplestack.domain.QnADocument;
 import com.marklogic.samplestack.exception.SampleStackDataIntegrityException;
+import com.marklogic.samplestack.exception.SamplestackInvalidParameterException;
+import com.marklogic.samplestack.exception.SamplestackNotFoundException;
+import com.marklogic.samplestack.exception.SamplestackSearchException;
 import com.marklogic.samplestack.security.ClientRole;
 import com.marklogic.samplestack.service.ContributorService;
 import com.marklogic.samplestack.service.QnAService;
@@ -74,10 +77,10 @@ public class QnADocumentController {
 		if (q == null) {
 			q = "sort:active";
 		}
-		ObjectNode structuredQuery = mapper.createObjectNode();
-		ObjectNode qtext = structuredQuery.putObject("query");
+		ObjectNode combinedQuery = mapper.createObjectNode();
+		ObjectNode qtext = combinedQuery.putObject("search");
 		qtext.put("qtext",q);
-		return qnaService.rawSearch(ClientRole.securityContextRole(), structuredQuery, start, null, true);
+		return qnaService.rawSearch(ClientRole.securityContextRole(), combinedQuery, start, DateTimeZone.forID("US/Pacific"));
 	}
 
 	/**
@@ -103,8 +106,14 @@ public class QnADocumentController {
 	@RequestMapping(value = "v1/questions/{id}", method = RequestMethod.GET)
 	public @ResponseBody
 	JsonNode get(@PathVariable(value = "id") String id) {
-		QnADocument qnaDoc = qnaService.get(ClientRole.securityContextRole(), id);
-		return qnaDoc.getJson();
+		Contributor contributor = contributorService.getByUserName(ClientRole.securityContextUserName());
+		QnADocument qnaDoc = qnaService.get(ClientRole.securityContextRole(), contributor, id);
+		// if URL was accessed with under-privileged role, qnaDoc will be null.
+		if (qnaDoc == null) {
+			throw new SamplestackNotFoundException();
+		} else {
+			return qnaDoc.getJson();
+		}
 	}
 
 	/**
@@ -133,8 +142,7 @@ public class QnADocumentController {
 	JsonNode answer(@RequestBody JsonNode answer,
 			@PathVariable(value = "id") String id) {
 		String answerId = id;
-		Contributor owner = contributorService.getByUserName(
-				ClientRole.securityContextUserName());
+		Contributor owner = contributorService.getByUserName(ClientRole.securityContextUserName());
 		QnADocument answered = qnaService.answer(owner, answerId, answer.get("text").asText());
 		return answered.getJson();
 	}
@@ -150,10 +158,11 @@ public class QnADocumentController {
 	JsonNode accept(@PathVariable(value = "answerId") String answerIdPart) {
 		String userName = ClientRole.securityContextUserName();
 		String answerId = answerIdPart;
-		QnADocument toAccept = qnaService.findOne(ClientRole.SAMPLESTACK_CONTRIBUTOR, "id:"+answerId, 1);
+		Contributor accepter = contributorService.getByUserName(userName);
+		QnADocument toAccept = qnaService.findOne(ClientRole.SAMPLESTACK_CONTRIBUTOR, "id:"+answerId, 1, null);
 		if (toAccept.getOwnerUserName().equals(userName)) {
-			QnADocument accepted = qnaService.accept(answerId);
-			return accepted.getJson();			
+			QnADocument accepted = qnaService.accept(accepter, answerId);
+			return accepted.getJson();
 		}
 		else {
 			throw new SampleStackDataIntegrityException("Current user does not match owner of question");
@@ -264,32 +273,36 @@ public class QnADocumentController {
 	
 	/**
 	 * Exposes an endpoint for searching QnADocuments.
-	 * @param structuredQuery A JSON structured query.
+	 * @param combinedQuery A JSON combined query.
 	 * @param start The index of the first result to return.
 	 * @return A Search Results JSON response.
 	 */
 	@RequestMapping(value = "v1/search", method = RequestMethod.POST)
 	public @ResponseBody
-	JsonNode search(@RequestBody ObjectNode structuredQuery,
+	JsonNode search(@RequestBody ObjectNode combinedQuery,
 			@RequestParam(defaultValue = "1", required = false) long start) {
 
-		ArrayNode qtext = mapper.createArrayNode();
-		JsonNode postedStartNode = structuredQuery.get("start");
+		ObjectNode combinedQueryObject = (ObjectNode) combinedQuery.get("search");
+		if (combinedQueryObject == null) {
+			throw new SamplestackSearchException("A Samplestack search must have payload with root key \"search\"");
+		}
+		JsonNode postedStartNode = combinedQueryObject.get("start");
 		if (postedStartNode != null) {
 			start = postedStartNode.asLong();
-			structuredQuery.remove("start");
+			combinedQueryObject.remove("start");
 		}
-		JsonNode postedQtextNode = structuredQuery.get("qtext");
-		if (postedQtextNode != null) {
-			if (postedQtextNode.isTextual()) {
-				qtext.add(postedQtextNode);  // just one qtext
-			} else if (postedQtextNode.isArray()) {
-				qtext.addAll((ArrayNode) postedQtextNode);
+		JsonNode postedTimeZone = combinedQueryObject.get("timezone");
+		DateTimeZone userTimeZone = DateTimeZone.getDefault();
+		if (postedTimeZone != null) {
+			try {
+				userTimeZone = DateTimeZone.forID(postedTimeZone.asText());
+			} catch (IllegalArgumentException e) {
+				throw new SamplestackInvalidParameterException("Received unrecognized timezone from browser: " + postedTimeZone.asText());
 			}
-			structuredQuery.remove("qtext");
+			combinedQueryObject.remove("timezone");
 		}
 		// TODO review for presence/absense of date facet as performance question.
-		return qnaService.rawSearch(ClientRole.securityContextRole(), structuredQuery, start, qtext, true);
+		return qnaService.rawSearch(ClientRole.securityContextRole(), combinedQuery, start, userTimeZone);
 	}
 
 }

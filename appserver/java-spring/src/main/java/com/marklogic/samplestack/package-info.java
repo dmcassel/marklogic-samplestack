@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,5 @@
  * Top-level package for the Java Samplestack 
  * Middle Tier Application Server.
  * Application is the main entry point for the application.
- * @see com.marklogic.samplestack.Application
  */
 package com.marklogic.samplestack;

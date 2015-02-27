@@ -11,10 +11,11 @@ Here are things you'll want to manipulate for your application:
 * options     options configurations for the application searches
 * services    resource extensions for the REST server
 * transforms  XSLT, XQuery transforms
-* seed-data   sample data to be loaded into the database
 * security    MarkLogic roles, privileges, and users for running the application.
 
 MarkLogic Admin : http://localhost:8001
 
 MarkLogic Query Console : http://localhost:8000/qconsole
 
+If you are interested, the project to create the seed data for samplestack
+can be found for the time being at http://github.com/grechaw/samplestack-etl

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.samplestack.SamplestackConstants;
 import com.marklogic.samplestack.exception.SamplestackInvalidParameterException;
 import com.marklogic.samplestack.security.ClientRole;
+import com.marklogic.samplestack.service.RelatedTagsService;
 import com.marklogic.samplestack.service.TagsService;
 
 /**
@@ -44,6 +46,8 @@ public class TagsController {
 	@Autowired 
 	private ObjectMapper mapper;
 	
+	@Autowired
+	private RelatedTagsService relatedTagsService;
 
 	@SuppressWarnings("unused")
 	private final Logger logger = LoggerFactory.getLogger(TagsController.class);
@@ -53,47 +57,70 @@ public class TagsController {
 	 */
 	@RequestMapping(value = "v1/tags", method = RequestMethod.POST)
 	public @ResponseBody
-	ObjectNode tags(@RequestBody(required=false) ObjectNode structuredQuery) {
+	ObjectNode tags(@RequestBody(required=false) ObjectNode combinedQuery) {
 		
-		if (structuredQuery == null) {
-			structuredQuery = mapper.createObjectNode();
+		ObjectNode searchNode;
+		if (combinedQuery == null) {
+			combinedQuery = mapper.createObjectNode();
+			combinedQuery.putObject("search");
 		}
-		JsonNode postedStartNode = structuredQuery.get("start");
-		JsonNode postedPageLength = structuredQuery.get("pageLength");
-		JsonNode postedSort = structuredQuery.get("sort");
-		JsonNode qtextNode = structuredQuery.get("qtext");
+		if (combinedQuery.has("search")) {
+			searchNode = (ObjectNode) combinedQuery.get("search");
+		} else {
+			throw new SamplestackInvalidParameterException("Tags requires a JSON with root \"search\" key");
+		}
+		JsonNode postedStartNode = searchNode.get("start");
+		JsonNode postedPageLength = searchNode.get("pageLength");
+		JsonNode postedSort = searchNode.get("sort");
+		JsonNode forTagNode = searchNode.get("forTag");
+		String forTagText = null;
+		if (forTagNode != null) {
+			forTagText = forTagNode.asText();
+		}
 
+		JsonNode relatedTagNode = searchNode.get("relatedTo");
+		String relatedTagsQtext = "";
+		if (relatedTagNode != null) {
+			String relatedToText = relatedTagNode.asText();
+			relatedTagsQtext = relatedTagsService.getRelatedTags(relatedToText);
+			JsonNode qtextNode = searchNode.findPath("qtext");
+			if (qtextNode.isMissingNode()) {
+				searchNode.put("qtext", relatedTagsQtext);
+			} else if (qtextNode.isArray()) {
+				((ArrayNode) searchNode.get("qtext")).add(relatedTagsQtext);
+			} else if (qtextNode.isTextual()) {
+				String existingText = searchNode.get("qtext").asText();
+				ArrayNode newQtexts = searchNode.putArray("qtext");
+				newQtexts.add(existingText);
+				newQtexts.add(relatedTagsQtext);
+			}
+		}
+		
 		long start = 1;
 		long pageLength = SamplestackConstants.RESULTS_PAGE_LENGTH;
-		String sortBy = "item";
+		String sortBy = "name";
 		if (postedStartNode != null) {
 			start = postedStartNode.asLong();
-			structuredQuery.remove("start");
+			searchNode.remove("start");
 		}
 		if (postedPageLength != null) {
 			pageLength = postedPageLength.asLong();
-			structuredQuery.remove("pageLength");
+			searchNode.remove("pageLength");
 		}
 		if (postedSort != null) {
 			sortBy = postedSort.asText();
-			structuredQuery.remove("sort");
+			searchNode.remove("sort");
 		}
 		if (sortBy != null) {
-			if (sortBy.equals("item")) {
+			if (sortBy.equals("name")) {
 				sortBy = "item-order";
 			} else if (sortBy.equals("frequency")) {
 				sortBy = "frequency-order";
 			} else {
-				throw new SamplestackInvalidParameterException("Sort must be item or frequency");
+				throw new SamplestackInvalidParameterException("Sort must be name or frequency");
 			}
 		}
-		ObjectNode docNode = mapper.createObjectNode();
-		ObjectNode searchNode = docNode.putObject("search");
-		if (qtextNode != null) {
-			searchNode.put("qtext", qtextNode);
-			structuredQuery.remove("qtext");
-		}
-		searchNode.setAll(structuredQuery);
+		
 		ObjectNode optionsNode = searchNode.putObject("options");
 		ObjectNode valuesNode = optionsNode.putObject("values");
 		ObjectNode rangeNode = valuesNode.putObject("range");
@@ -101,14 +128,10 @@ public class TagsController {
 		rangeNode.put("json-property", "tags");
 		valuesNode.put("name", "tags");
 		valuesNode.put("values-option", sortBy);
+		//ObjectNode aggregateNode = valuesNode.putObject("aggregate");
+		//aggregateNode.put("apply", "count");
 
-		return tagsService.getTags(ClientRole.securityContextRole(), docNode, start, pageLength);
+		return tagsService.getTags(ClientRole.securityContextRole(), forTagText, combinedQuery, start, pageLength);
 	}
 	
-	@RequestMapping(value = "v1/tags/{tag}", method = RequestMethod.POST)
-	public @ResponseBody
-	ObjectNode relatedTags(@RequestBody ObjectNode structuredQuery) {
-
-		return tagsService.getTags(ClientRole.securityContextRole(), structuredQuery, 1, 1);
-	}
 }

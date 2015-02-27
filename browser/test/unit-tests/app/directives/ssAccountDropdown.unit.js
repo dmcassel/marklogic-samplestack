@@ -23,8 +23,8 @@ define([
         'aboutMe':'Some text about a basic user',
         'id':'cf99542d-f024-4478-a6dc-7e723a51b040',
         'location':null,
-        'username':'joeUser@marklogic.com',
-        'votes':[],
+        'username':'joe@example.com',
+        'voteCount':0,
         'role':[
           'SAMPLESTACK_CONTRIBUTOR'
         ],
@@ -77,14 +77,14 @@ define([
           };
           scope.$apply();
           angular.element(
-            el[0].querySelector('.ss-user-info-display-name')
+            el[0].querySelector('.ss-account-display-name')
           ).text().should.equal(validUser.displayName);
           angular.element(
-            el[0].querySelector('.ss-user-info-votes-cast')
-          ).text().should.contain(validUser.votes.length);
+            el[0].querySelector('.ss-account-votes-cast')
+          ).text().should.contain(validUser.voteCount.toString());
           angular.element(
-            el[0].querySelector('.ss-user-info-reputation')
-          ).text().should.equal(String(validUser.reputation));
+            el[0].querySelector('.ss-account-reputation')
+          ).text().should.contain(String(validUser.reputation));
         }
       );
 

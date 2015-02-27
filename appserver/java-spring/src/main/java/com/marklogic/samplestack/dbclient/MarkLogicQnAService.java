@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,18 @@ import static com.marklogic.samplestack.SamplestackConstants.QUESTIONS_DIRECTORY
 import static com.marklogic.samplestack.SamplestackConstants.QUESTIONS_OPTIONS;
 import static com.marklogic.samplestack.SamplestackConstants.SEARCH_RESPONSE_TRANSFORM;
 import static com.marklogic.samplestack.SamplestackConstants.SINGLE_QUESTION_OPTIONS;
+import static com.marklogic.samplestack.SamplestackConstants.SINGLE_QUESTION_TRANSFORM;
+import static com.marklogic.samplestack.security.ClientRole.SAMPLESTACK_CONTRIBUTOR;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.UUID;
 
+import javax.annotation.PostConstruct;
+
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +40,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.marklogic.client.MarkLogicIOException;
 import com.marklogic.client.Transaction;
 import com.marklogic.client.document.DocumentMetadataPatchBuilder.Call;
@@ -69,10 +75,21 @@ import com.marklogic.samplestack.security.ClientRole;
 import com.marklogic.samplestack.service.ContributorService;
 import com.marklogic.samplestack.service.QnAService;
 
-@Component
 /**
- * Implementation of the QnAService interface.
+ * Implementation of the QnAService interface that uses the MarkLogic Java Client API
+ * to implement searches and document updates.  In this class you'll find examples
+ * of how to use MarkLogic's multistatement transactions, server-side transforms,
+ * and modifications to document permissions.
+ * 
+ * @see <a href="http://docs.marklogic.com/REST/client/transaction-management">REST API /v1/transactions</a>
+ * @see <a href="http://docs.marklogic.com/REST/client/transaction-management">REST API /v1/documents</a>
+ * @see <a href="http://docs.marklogic.com/REST/client/transaction-management">REST API /v1/search</a>
+ * @see <a href="http://docs.marklogic.com/REST/client/transaction-management">REST API /v1/values</a>
+ * @see <a href="http://docs.marklogic.com/guide/java/transactions">Java Client API Transactions</a>
+ * @see <a href="http://docs.marklogic.com/guide/java/document-operations/">Java Client API Document operations</a>
+ * @see <a href="http://docs.marklogic.com/guide/java/searches">Java Client API Searches</a>
  */
+@Component
 public class MarkLogicQnAService extends MarkLogicBaseService implements
 		QnAService {
 
@@ -97,10 +114,24 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 	}
 
 	/**
-	 * Start a transaction
+	 * This method simply runs a search against MarkLogic so that its
+	 * cache warms up while the Java tier is also warming up.
+	 * @throws Exception
+	 */
+	@PostConstruct
+	public void warmupSearchCache() throws Exception {
+		logger.info("Warming up MarkLogic Search Caches");
+		ObjectNode query = (ObjectNode) mapper
+				.readValue("{\"search\":{\"qtext\":\"\"}}",
+						JsonNode.class);
+		this.rawSearch(SAMPLESTACK_CONTRIBUTOR, query, 1, DateTimeZone.forOffsetHours(1));
+	}
+	
+	/**
+	 * Start a multistatement transaction.
 	 * 
 	 * @param role
-	 *            Role to search with
+	 *            Role for owning the transaction
 	 * @return A transaction to use in subsequent calls to MarkLogic
 	 */
 	private Transaction startTransaction(ClientRole role) {
@@ -108,12 +139,18 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 	}
 
 	@Override
-	public QnADocument findOne(ClientRole role, String queryString, long start) {
+	public QnADocument findOne(ClientRole role, String queryString, long start, String loggedInId) {
 		QueryManager queryManager = queryManager(role);
 		QueryDefinition stringQuery = queryManager.newStringDefinition(
 				SINGLE_QUESTION_OPTIONS).withCriteria(queryString);
 
 		stringQuery.setDirectory(QUESTIONS_DIRECTORY);
+		ServerTransform transform = new ServerTransform(SINGLE_QUESTION_TRANSFORM);
+		if (loggedInId != null) {
+			transform.add("voterId", loggedInId);
+		}
+		stringQuery.setResponseTransform(transform);
+
 		DocumentPage page = jsonDocumentManager(role)
 				.search(stringQuery, start);
 		if (page.hasNext()) {
@@ -141,11 +178,11 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 		question.setAnswerCount(0);
 
 		JsonNode jsonNode = mapper.convertValue(question, JsonNode.class);
-		jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).write(
+		jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).write(
 				documentUri, new JacksonHandle(jsonNode));
 
 		return new QnADocument((ObjectNode) getJsonDocument(
-				ClientRole.SAMPLESTACK_CONTRIBUTOR, documentUri));
+				SAMPLESTACK_CONTRIBUTOR, documentUri));
 	}
 
 	@Override
@@ -162,7 +199,7 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 			String answerText) {
 		String documentUri = uriFromId(toAnswerId);
 		DocumentPatchBuilder patchBuilder = jsonDocumentManager(
-				ClientRole.SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
+				SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
 
 		Answer answer = new Answer();
 		answer.setText(answerText);
@@ -170,6 +207,8 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 		answer.setItemTally(0);
 		answer.setComments(new ArrayList<Comment>());
 		answer.setCreationDate(new Date());
+		answer.setUpvotingContributorIds(new String[] {});
+		answer.setDownvotingContributorIds(new String[] {});
 
 		// put ths sparse contributor data on this node
 		SparseContributor owner = contributor.asSparseContributor();
@@ -184,14 +223,14 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 			patchBuilder.replaceApply("/answerCount", call);
 			DocumentPatchHandle patch = patchBuilder.build();
 			logger.debug(patch.toString());
-			jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(
+			jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).patch(
 					documentUri, patch);
 		} catch (MarkLogicIOException e) {
 			throw new SamplestackIOException(e);
 		} catch (JsonProcessingException e) {
 			throw new SamplestackIOException(e);
 		}
-		return get(ClientRole.SAMPLESTACK_CONTRIBUTOR, idFromUri(documentUri));
+		return get(SAMPLESTACK_CONTRIBUTOR, contributor, idFromUri(documentUri));
 	}
 
 	@Override
@@ -199,8 +238,8 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 	 * Use DocumentPatchBuilder to accept an answer.
 	 * Involves updating /acceptedAnswerId and the accepted flag of given answer.
 	 */
-	public QnADocument accept(String answerId) {
-		QnADocument qnaDocument = getByPostId(answerId);
+	public QnADocument accept(Contributor contributor, String answerId) {
+		QnADocument qnaDocument = getByPostId(SAMPLESTACK_CONTRIBUTOR, contributor, answerId);
 
 		String qnaDocumentId = qnaDocument.getId();
 
@@ -210,80 +249,61 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 
 		logger.debug("Accepting " + answerId + " at documentURI" + documentUri);
 		DocumentPatchBuilder patchBuilder = jsonDocumentManager(
-				ClientRole.SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
+				SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
 
-		Transaction transaction = startTransaction(ClientRole.SAMPLESTACK_CONTRIBUTOR);
+		Transaction transaction = startTransaction(SAMPLESTACK_CONTRIBUTOR);
 
 		try {
 			patchBuilder.replaceValue("/acceptedAnswerId", answerId);
 			patchBuilder.replaceValue("/lastActivityDate",
 					ISO8601Formatter.format(new Date()));
-			patchBuilder.replaceValue("/accepted", true);
+			patchBuilder.replaceFragment("/accepted", true);
 			patchBuilder.addPermission("samplestack-guest", Capability.READ);
 			DocumentPatchHandle patch = patchBuilder.build();
 			logger.debug(patch.toString());
-			jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(
+			jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).patch(
 					documentUri, patch, transaction);
-		} catch (MarkLogicIOException e) {
-			throw new SamplestackIOException(e);
-		}
 
-		// reputation handling
-		ArrayNode answers = (ArrayNode) qnaDocument.getJson().get("answers");
-		Iterator<JsonNode> iterator = answers.iterator();
-		boolean done = false;
-		while (iterator.hasNext() || done) {
-			JsonNode answer = iterator.next();
-			String id = answer.get("id").asText();
-			if (!previousAnsweredId.isMissingNode()
-					&& id.equals(previousAnsweredId.asText())) {
-				String toLowerReputationUserName = answer.get("owner")
-						.get("userName").asText();
-				Contributor toLowerReputation = contributorService
-						.getByUserName(toLowerReputationUserName);
-				toLowerReputation.setReputation(toLowerReputation
-						.getReputation() - 1);
-				contributorService.store(toLowerReputation, transaction);
+			// reputation handling
+			ArrayNode answers = (ArrayNode) qnaDocument.getJson()
+					.get("answers");
+			Iterator<JsonNode> iterator = answers.iterator();
+			while (iterator.hasNext()) {
+				JsonNode answer = iterator.next();
+				String id = answer.get("id").asText();
+				if (!previousAnsweredId.isMissingNode()
+						&& id.equals(previousAnsweredId.asText())) {
+					adjustReputation(answer.get("owner"), -1, transaction);
+				}
+				if (answer.get("id").asText().equals(answerId)) {
+					adjustReputation(answer.get("owner"), 1, transaction);
+				}
 			}
-			if (answer.get("id").asText().equals(answerId)) {
-				String toRaiseReputationUserName = answer.get("owner")
-						.get("userName").asText();
-				Contributor toRaiseReputation = contributorService
-						.getByUserName(toRaiseReputationUserName);
-				toRaiseReputation.setReputation(toRaiseReputation
-						.getReputation() + 1);
-				contributorService.store(toRaiseReputation, transaction);
-			}
+
+			transaction.commit();
+			transaction = null;
+			QnADocument acceptedDocument = getByPostId(SAMPLESTACK_CONTRIBUTOR, contributor, answerId);
+
+			return acceptedDocument;
+		} finally {
+			if (transaction != null) { transaction.rollback(); };
 		}
-
-		transaction.commit();
-		QnADocument acceptedDocument = getByPostId(answerId);
-
-		return acceptedDocument;
 	}
 
 	@Override
-	/** This method gets a document for deliver
-	 * to the REST endpoint.  
-	 * Since it needs users' reputation as part of the 
-	 * payload it invokes s transform to add it.
-	 */
-	public QnADocument get(ClientRole role, String id) {
-		logger.debug("Fetching document with ID " + id);
-		ServerTransform transform = new ServerTransform("single-question");
-		JacksonHandle handle = new JacksonHandle();
-		JacksonHandle jacksonHandle = clients.get(role).newJSONDocumentManager()
-				.read(uriFromId(id), null, handle, transform);
-		JsonNode json = jacksonHandle.get();
-		QnADocument question = new QnADocument((ObjectNode) json);
-		return question;
+	public QnADocument get(ClientRole role, Contributor contributor, String id) {
+		return getByPostId(role, contributor, id);
 	}
 
-	private QnADocument getByPostId(String answerId) {
-		return findOne(ClientRole.SAMPLESTACK_CONTRIBUTOR, "id:" + answerId, 1);
+	private QnADocument getByPostId(ClientRole role, Contributor loggedInUser, String postId) {
+		String loggedInId = null;
+		if (loggedInUser != null) {
+			loggedInId = loggedInUser.getId();
+		}
+		return findOne(role, "id:" + postId, 1, loggedInId);
 	}
 
-	private DateTime[] getDateRanges(ClientRole role, ObjectNode structuredQuery) {
+	private DateTime[] getDateRanges(ClientRole role, ObjectNode structuredQuery, DateTimeZone userTimeZone) {
 		DateTime[] dates = new DateTime[2];
 		QueryManager queryManager = clients.get(role).newQueryManager();
 		ValuesDefinition valdef = queryManager
@@ -297,44 +317,44 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 		valdef.setQueryDefinition(qdef);
 		ValuesHandle responseHandle = null;
 		try {
-			responseHandle = queryManager.values(valdef,
-					new ValuesHandle());
+			responseHandle = queryManager.values(valdef, new ValuesHandle());
 		} catch (com.marklogic.client.FailedRequestException ex) {
 			throw new SamplestackSearchException(ex);
 		}
 		String minDate = responseHandle.getAggregates()[0].getValue();
 		String maxDate = responseHandle.getAggregates()[1].getValue();
 		if (!minDate.equals("")) {
-			dates[0] = new DateTime(minDate);
+			dates[0] = new DateTime(minDate, userTimeZone);
 		}
 		if (!maxDate.equals("")) {
-			dates[1] = new DateTime(maxDate);
+			dates[1] = new DateTime(maxDate, userTimeZone);
 		}
 		return dates;
 	}
 
 	@Override
 	public ObjectNode rawSearch(ClientRole role, ObjectNode structuredQuery,
-			long start, ArrayNode qtext, boolean includeDateFacet) {
+			long start, DateTimeZone userTimeZone) {
 		ObjectNode docNode = mapper.createObjectNode();
 		ObjectNode searchNode = docNode.putObject("search");
 		if (structuredQuery != null) {
-			searchNode.setAll(structuredQuery);
+			if (structuredQuery.get("search") != null) {
+				searchNode.setAll((ObjectNode) structuredQuery.get("search"));
+			}
 		}
-		if (qtext != null) {
-			ArrayNode qtextNode = docNode.putArray("qtext");
-			qtextNode.addAll(qtext);
-		}
-		if (includeDateFacet) {
+		String period = "";
+		if (userTimeZone != null) {
 			ObjectNode options = searchNode.putObject("options");
 			options.put("page-length", SamplestackConstants.RESULTS_PAGE_LENGTH);
 
-			DateTime[] dateRange = getDateRanges(role, structuredQuery);
-			logger.debug("Got ranges for buckets: " + dateRange.toString());
+			DateTime[] dateRange = getDateRanges(role, structuredQuery, userTimeZone);
 
 			if (dateRange[0] != null && dateRange[1] != null) {
-				options.setAll(DateFacetBuilder.dateFacet(dateRange[0],
-						dateRange[1]));
+				ObjectNode facetDescriptor = DateFacetBuilder.dateFacet(
+						dateRange[0], dateRange[1]);
+				period = facetDescriptor.get("period").asText();
+				facetDescriptor.remove("period");
+				options.setAll(facetDescriptor);
 				logger.debug("Got date range to query: "
 						+ dateRange[0].toString() + " to "
 						+ dateRange[1].toString());
@@ -365,7 +385,6 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 		ArrayNode results = (ArrayNode) responseNode.findPath("results");
 
 		int objectIndex = 0;
-		JsonNode reputations = responseNode.findPath("reputations");
 
 		while (docPage.hasNext()) {
 			// the matching document, as returned by extract-document-data
@@ -377,7 +396,7 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 					.get(objectIndex);
 
 			// TODO this all should be extractable server-side, but
-			// I ran into issues with extract-document-data (10/15/2014)
+			// I ran into issues with extract-document-data (10/15/2015)
 			ObjectNode newContent = searchResponseResultNode
 					.putObject("content");
 			newContent.put("accepted", documentResultObject.get("accepted")
@@ -404,14 +423,7 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 			// documentResult.get("answers").size());
 			newContent.put("title", documentResultObject.get("title").asText());
 
-			try {
-				logger.debug(mapper.writeValueAsString(documentResultObject
-						.get("owner")));
-			} catch (JsonProcessingException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			newContent.put("owner", documentResultObject.get("owner"));
+			newContent.set("owner", documentResultObject.get("owner"));
 
 			// remove unused keys
 			searchResponseResultNode.remove("matches");
@@ -420,8 +432,15 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 			objectIndex++;
 		}
 
-		responseNode.remove("reputations");
-
+		// find the date facet and decorate with period
+		ObjectNode facetsNode = (ObjectNode) responseNode.get("facets");
+		try {
+			((ObjectNode) facetsNode.get("date")).put("period", period);
+		} catch (Exception e) {
+			// do nothing with facets if we couldn't add the period.
+			logger.debug("Unable to decorate facet payload with Period " + period);
+		}
+		responseNode.set("facets", facetsNode);
 		return (ObjectNode) responseNode;
 	}
 
@@ -429,72 +448,147 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 	// TODO date facet is default ON now. open issue is to control state from
 	// browser.
 	public ObjectNode rawSearch(ClientRole role, ObjectNode query, long start) {
-		return rawSearch(role, query, start, null, false);
+		return rawSearch(role, query, start, null);
 	}
 
 	@Override
 	public QnADocument voteUp(Contributor voter, String postId) {
-		vote(voter, postId, 1);
-		return getByPostId(postId);
+		vote(voter, postId, 1, "upvotingContributorIds");
+		return getByPostId(SAMPLESTACK_CONTRIBUTOR, voter, postId);
 	}
 
-	private void vote(Contributor voter, String postId, int delta) {
-		if (voter.hasVotedOn(postId)) {
-			throw new SampleStackDataIntegrityException(
-					"Contributor cannot vote on the same post twice");
-		}
-		QnADocument qnaDocument = getByPostId(postId);
+	private void vote(Contributor voter, String postId, int delta, String trackingArrayKeyName) {
+		Transaction transaction = startTransaction(SAMPLESTACK_CONTRIBUTOR);
+		QnADocument qnaDocument = getByPostId(SAMPLESTACK_CONTRIBUTOR, voter, postId);
+		String voterId = voter.getId();
 		String qnaDocumentId = qnaDocument.getId();
 		String documentUri = uriFromId(qnaDocumentId);
-
-		Transaction transaction = startTransaction(ClientRole.SAMPLESTACK_CONTRIBUTOR);
+		
+		logger.debug("IN VOTES.  voter is "+ voter.getUserName() +". Voter votecount is " + voter.getVoteCount());
 
 		try {
+			// is this vote on a root question?
+			String tallyPath = null;
+			String trackingArrayPath = null;
+			if (postId.equals(qnaDocumentId)) {
+				tallyPath = "/itemTally";
+				trackingArrayPath = "/array-node(\"" + trackingArrayKeyName
+						+ "\")";
+				// hasVoted?
+				ArrayNode existingUpVotes = (ArrayNode) qnaDocument.getJson()
+						.get("upvotingContributorIds");
+				for (JsonNode n : existingUpVotes) {
+					if (n.asText().equals(voterId)) {
+						throw new SampleStackDataIntegrityException(
+								"Contributor cannot vote on the same post twice");
+					}
+				}
+				ArrayNode existingDownVotes = (ArrayNode) qnaDocument.getJson()
+						.get("downvotingContributorIds");
+				for (JsonNode n : existingDownVotes) {
+					if (n.asText().equals(voterId)) {
+						throw new SampleStackDataIntegrityException(
+								"Contributor cannot vote on the same post twice");
+					}
+				}
+			} // or on an answer
+			else {
+				tallyPath = "/answers[id=\"" + postId + "\"]/itemTally";
+				trackingArrayPath = "/answers[id=\"" + postId
+						+ "\"]/array-node(\"" + trackingArrayKeyName + "\")";
+				ArrayNode answers = (ArrayNode) qnaDocument.getJson().get(
+						"answers");
+				for (JsonNode answer : answers) {
+					if (answer.get("id").asText().equals(postId)) {
+						ArrayNode existingVotes = (ArrayNode) answer
+								.get(trackingArrayKeyName);
+						for (JsonNode n : existingVotes) {
+							if (n.asText().equals(voterId)) {
+								throw new SampleStackDataIntegrityException(
+										"Contributor cannot vote on the same post twice");
+							}
+						}
+						break;
+					}
+				}
+			}
 			logger.debug("Voting on " + postId + " at documentURI"
 					+ documentUri);
 			DocumentPatchBuilder patchBuilder = jsonDocumentManager(
-					ClientRole.SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
+					SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
 
 			try {
 				Call call = patchBuilder.call().add(delta);
 				patchBuilder.replaceApply("/voteCount", call);
 
-				if (postId.equals(qnaDocumentId)) {
-					patchBuilder.replaceApply("/itemTally", call);
-				} else {
-					patchBuilder.replaceApply("/answers[id=\"" + postId
-							+ "\"]/itemTally", call);
-				}
+				patchBuilder.replaceApply(tallyPath, call);
+
+				patchBuilder.insertFragment(trackingArrayPath, Position.LAST_CHILD, new TextNode(voterId));
 				DocumentPatchHandle patch = patchBuilder.build();
 
 				logger.debug(patch.toString());
-				jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(
+				jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).patch(
 						documentUri, patch, transaction);
 			} catch (MarkLogicIOException e) {
 				throw new SamplestackIOException(e);
 			}
 
 			// update the contributor record with vote
-			voter.getVotes().add(postId);
-			voter.setReputation(voter.getReputation() + delta);
-			contributorService.store(voter, transaction);
+			Contributor toUpdateVoter = contributorService.read(voterId, transaction);
+			toUpdateVoter.setVoteCount(toUpdateVoter.getVoteCount() + 1);
+			contributorService.store(toUpdateVoter, transaction);
+
+			if (qnaDocument.getJson().get("id").asText().equals(postId)) {
+				adjustReputation(qnaDocument.getJson().get("owner"), delta, transaction);
+			}
+			else {
+				Iterator<JsonNode> iterator = qnaDocument.getJson().get("answers").iterator();
+				while (iterator.hasNext()) {
+					ObjectNode answer = (ObjectNode) iterator.next();
+					if (answer.get("id").asText().equals(postId)) {
+						adjustReputation(answer.get("owner"), delta, transaction);
+						break;
+					}
+				}
+			}
 
 			transaction.commit();
-		} catch (SampleStackDataIntegrityException ex) {
-			transaction.rollback();
-			throw ex;
+			transaction = null;
+		}
+		finally {
+			if (transaction != null) {
+				transaction.rollback();
+			}
+		}
+	}
+
+	private void adjustReputation(JsonNode ownerNode, int delta,
+			Transaction transaction) {
+		if (ownerNode.isObject()) {
+			String toAdjustId = ownerNode.get("id").asText();
+
+			Contributor toAdjustObject = contributorService
+					.read(toAdjustId, transaction);
+			if (toAdjustObject != null) {
+				toAdjustObject.setReputation(
+						toAdjustObject.getReputation() + delta);
+			contributorService
+					.store(toAdjustObject, transaction);
+			}
+		} else {
+			logger.warn("Could not adjust repuation of owner, ignoring");
 		}
 	}
 
 	@Override
 	public QnADocument voteDown(Contributor voter, String postId) {
-		vote(voter, postId, -1);
-		return getByPostId(postId);
+		vote(voter, postId, -1, "downvotingContributorIds");
+		return getByPostId(SAMPLESTACK_CONTRIBUTOR, voter, postId);
 	}
 
 	@Override
 	public void delete(String id) {
-		jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).delete(
+		jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).delete(
 				uriFromId(id));
 	}
 
@@ -503,7 +597,7 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 			String text) {
 
 		// TODO speed up with values call
-		QnADocument qnaDocument = getByPostId(postId);
+		QnADocument qnaDocument = getByPostId(SAMPLESTACK_CONTRIBUTOR, contributor, postId);
 		if (qnaDocument == null) {
 			throw new SamplestackNotFoundException();
 		}
@@ -518,7 +612,7 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 		logger.debug("Commenting on " + postId + " at documentURI"
 				+ documentUri);
 		DocumentPatchBuilder patchBuilder = jsonDocumentManager(
-				ClientRole.SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
+				SAMPLESTACK_CONTRIBUTOR).newPatchBuilder();
 
 		try {
 			if (postId.equals(qnaDocumentId)) {
@@ -531,25 +625,22 @@ public class MarkLogicQnAService extends MarkLogicBaseService implements
 						+ "\"]/array-node('comments')", Position.LAST_CHILD,
 						mapper.writeValueAsString(comment));
 			}
-			patchBuilder.replaceValue("/lastActivityDate",
-					ISO8601Formatter.format(new Date()));
-
 			DocumentPatchHandle patch = patchBuilder.build();
 			logger.debug(patch.toString());
-			jsonDocumentManager(ClientRole.SAMPLESTACK_CONTRIBUTOR).patch(
+			jsonDocumentManager(SAMPLESTACK_CONTRIBUTOR).patch(
 					documentUri, patch);
 		} catch (MarkLogicIOException e) {
 			throw new SamplestackIOException(e);
 		} catch (JsonProcessingException e) {
 			throw new SamplestackIOException(e);
 		}
-		return getByPostId(postId);
+		return getByPostId(SAMPLESTACK_CONTRIBUTOR, contributor, postId);
 
 	}
 
 	@Override
 	public void deleteAll() {
-		deleteDirectory(ClientRole.SAMPLESTACK_CONTRIBUTOR, QUESTIONS_DIRECTORY);
+		deleteDirectory(SAMPLESTACK_CONTRIBUTOR, QUESTIONS_DIRECTORY);
 	}
 
 }

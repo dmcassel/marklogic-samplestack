@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ public class ControllerTests {
 
 	protected void askQuestion() throws Exception {
 		if (askedQuestion == null) {
-			login("joeUser@marklogic.com", "joesPassword");
+			login("testC1@example.com", "c1");
 
 			QnADocument qnaDoc = new QnADocument(mapper,
 					"Mary's Question Number 0", "I ask questions", "tag1",

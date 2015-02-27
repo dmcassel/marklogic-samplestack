@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 package com.marklogic.samplestack.mock;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Component;
 
 import com.marklogic.samplestack.web.security.SamplestackSecurityConfigurer;
 
-
 @EnableWebSecurity
 @Component
 @EnableGlobalMethodSecurity(prePostEnabled = true)
@@ -37,18 +36,22 @@ public class MockApplicationSecurity extends WebSecurityConfigurerAdapter {
 
 	@Autowired
 	private SamplestackSecurityConfigurer configurer;
-		
+
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		configurer.configure(http);
 	}
 
-
-
 	@Override
 	protected void configure(AuthenticationManagerBuilder authManagerBuilder)
 			throws Exception {
-		configurer.inMemoryConfiguration(authManagerBuilder);
+		authManagerBuilder.inMemoryAuthentication()
+				.withUser("testC1@example.com")
+					.password("c1")
+					.roles("CONTRIBUTORS").and()
+				.withUser("testA1@example.com")
+					.password("a1")
+					.roles("CONTRIBUTORS", "ADMINS");
 	}
-	
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2014 MarkLogic Corporation
+ * Copyright 2012-2015 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,10 +60,10 @@ public class LDAPIT {
 	final String ldapSearchBase = "dc=samplestack,dc=org";
 
 	//use one of the existing users...
-	final String ldapUsername = "uid=maryAdmin@marklogic.com,ou=people,dc=samplestack,dc=org";
-	final String ldapPassword = "marysPassword";
+	final String ldapUsername = "uid=testA1@example.com,ou=people,dc=samplestack,dc=org";
+	final String ldapPassword = "a1";
 
-	final String contributor = "Joe User";
+	final String contributorName = "Test User";
 	
 	Hashtable<String, Object> env;
 	LdapContext ctx;
@@ -97,9 +97,9 @@ public class LDAPIT {
 
 	@Test
 	public void testFinds() throws NamingException {
-		SearchResult srLdapUser = findAccountByAccountName(contributor);
-		
-		assertEquals("joeUser@marklogic.com", srLdapUser.getAttributes().get("uid").get());
+		SearchResult srLdapUser = findAccountByAccountName(contributorName);
+
+		assertEquals("testC1@example.com", srLdapUser.getAttributes().get("uid").get());
 
 	}
 
