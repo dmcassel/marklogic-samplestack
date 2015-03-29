@@ -88,7 +88,18 @@ define([
       });
 
       it('should get back an object for tags facet results', function (done) {
-        var s = ssSearch.create();
+        var s = ssSearch.create({
+          criteria: {
+            constraints: {
+              dateStart: {
+                value: mlUtil.moment('2014-08-01T00:00:00.000-05:00')
+              },
+              tags: {
+                values: ['javascript']
+              }
+            }
+          }
+        });
         $httpBackend.expectPOST('/v1/search').respond(mocks.searchResponse);
         s.post().$ml.waiting.then(
           function () {
@@ -100,7 +111,18 @@ define([
       });
 
       it('should get back an array for dates facet results', function (done) {
-        var s = ssSearch.create();
+        var s = ssSearch.create({
+          criteria: {
+            constraints: {
+              dateStart: {
+                value: mlUtil.moment('2014-08-01T00:00:00.000-05:00')
+              },
+              tags: {
+                values: ['javascript']
+              }
+            }
+          }
+        });
         $httpBackend.expectPOST('/v1/search').respond(mocks.searchResponse);
         s.post().$ml.waiting.then(
           function () {
@@ -112,10 +134,23 @@ define([
       });
 
       it('should have shadows dates', function (done) {
-        var s = ssSearch.create();
+        var s = ssSearch.create({
+          criteria: {
+            constraints: {
+              dateStart: {
+                value: mlUtil.moment('2014-08-01T00:00:00.000-05:00')
+              },
+              tags: {
+                values: ['javascript']
+              }
+            }
+          }
+        });
         $httpBackend.expectPOST('/v1/search').respond(mocks.searchResponse);
-        $httpBackend.expectPOST('/v1/search').respond(mocks.searchResponse);
-        $httpBackend.expectPOST('/v1/search').respond(mocks.searchResponse);
+        $httpBackend.expectPOST('/v1/search?shadow=tags')
+            .respond(mocks.searchResponse);
+        $httpBackend.expectPOST('/v1/search?shadow=dates')
+            .respond(mocks.searchResponse);
         s.shadowSearch().then(
           function () {
             expect(s.results.facets.dates[0].shadow).to.be.ok;

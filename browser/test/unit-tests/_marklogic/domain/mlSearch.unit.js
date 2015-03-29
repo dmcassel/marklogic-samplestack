@@ -628,18 +628,20 @@ define([
         });
         helper.setExpectCsrf($httpBackend);
         $httpBackend.expectPOST(/\/v1\/search$/).respond(mocks.searchResponse);
-        $httpBackend.expectPOST(/\/v1\/search$/).respond(mocks.searchResponse);
+        $httpBackend.expectPOST(/\/v1\/search\?shadow=tag$/)
+            .respond(mocks.searchResponse);
 
         var s = mlSearch.create({
           facets: {
             tag: {
-              constraints: ['tag']
+              constraints: ['tag'],
+              shadowConstraints: [ 'tag' ]
             }
           },
           criteria: {
             q: 'testy',
             constraints: {
-              dummy: {
+              tag: {
                 queryStringName: 'tag',
                 constraintName: 'tag',
                 constraintType: 'range',
@@ -674,19 +676,20 @@ define([
           helper.setExpectCsrf($httpBackend);
           $httpBackend.expectPOST(/\/v1\/search$/)
               .respond(mocks.searchResponse);
-          $httpBackend.expectPOST(/\/v1\/search$/)
+          $httpBackend.expectPOST(/\/v1\/search\?shadow=tag$/)
               .respond(mocks.searchResponse);
 
           var s = mlSearch.create({
             facets: {
               tag: {
-                constraints: ['tag']
+                constraints: ['tag'],
+                shadowConstraints: [ 'tag' ]
               }
             },
             criteria: {
               q: 'testy',
               constraints: {
-                dummy: {
+                tag: {
                   queryStringName: 'tag',
                   constraintName: 'tag',
                   constraintType: 'range',
