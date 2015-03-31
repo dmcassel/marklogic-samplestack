@@ -1,10 +1,32 @@
+var options = sharedRequire('js/options');
+
 var mlclient = require('marklogic');
-var options = libRequire('../options').db;
 var boundClients = {};
+
+var execAsTransaction = function (ex) {
+  var self = this;
+  var txid;
+
+  return this.transactions.open().result()
+  .then(function (resp) {
+    txid = resp.txid;
+    return ex(txid);
+  })
+  .then(function (result) {
+    return self.transactions.commit(txid).result()
+    .then(function () {
+      return result;
+    });
+  })
+  .catch(function (err) {
+    return self.transactions.rollback(txid).result()
+    .thenThrow(err);
+  });
+};
 
 var getClient = function (user, password) {
   return mlclient.createDatabaseClient(_.merge(
-    options.clientConnection,
+    options.middleTier.db.clientConnection,
     {
       user: user,
       password: password
@@ -34,6 +56,7 @@ var getBoundClient = function (user, password) {
       boundClient[key] = mod(connection);
     });
     boundClient.transactions = connection.transactions;
+    boundClient.execAsTransaction = execAsTransaction.bind(connection);
     boundClients[user] = boundClient;
   }
   return boundClients[user];
@@ -42,5 +65,6 @@ var getBoundClient = function (user, password) {
 
 module.exports = {
   getBoundClient: getBoundClient,
-  getGenericClient: getClient
+  getGenericClient: getClient,
+  execAsTransaction: execAsTransaction
 };

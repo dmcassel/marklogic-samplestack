@@ -68,6 +68,7 @@ function lrSetup (port, glob, name, fileRelativizer, cb) {
       {
         name: name, // 'reload-watch',
         emitOnGlob: false,
+        ignoreInitial: true,
         emit: 'one',
         debounceDelay: 250,
         verbose: false
@@ -132,13 +133,14 @@ var watchTaskFunc = function (cb) {
     );
   }
 
-  var watcher = $.watch(
+  var browserWatcher = $.watch(
     [
       path.join(ctx.paths.browser.srcDir, '**/*'),
       path.join(ctx.paths.browser.unitSrcDir, '**/*')
     ],
     {
       name: 'watch',
+      ignoreInitial: true,
       emitOnGlob: false,
       emit: 'one',
       verbose: false
@@ -192,11 +194,31 @@ var watchTaskFunc = function (cb) {
       }
     }
   );
-  watcher.on('error', function (e) {
+  browserWatcher.on('error', function (e) {
     console.log('watcher error: ' + e.toString());
   });
 
-  ctx.setActiveServer('watcher', watcher);
+  ctx.setActiveServer('watcher', browserWatcher);
+  console.log(path.join(ctx.paths.middle.lib, '**/*'));
+  var middleWatcher = $.watch(
+    path.join(ctx.paths.middle.lib, '**/*'),
+    {
+      name: 'watchMiddle',
+      ignoreInitial: true,
+      emitOnGlob: false,
+      emit: 'one',
+      verbose: false
+    },
+    function (file) {
+      ctx.closeActiveServer(
+        addresses.webApp.port,
+        function () {
+          ctx.startServer(ctx.paths.browser.buildDir, addresses.webApp.port);
+          writeWatchMenu();
+        }
+      );
+    }
+  );
 
   if (!ctx.getActiveServer('reload-build-watch')) {
     lrSetup(
@@ -249,7 +271,6 @@ var setProcessWatch = function () {
     );
     // ctx.closeActiveServers(function () {
     ctx.restartChild();
-    // });
   });
   ctx.setActiveServer('processWatcher', watcher);
   watcher.on('error', function (e) {
@@ -265,7 +286,7 @@ myTasks.push({
   name: 'watch',
   deps: ['watchCalled', 'build', 'unit'],
   func: function (cb) {
-    setProcessWatch();
+    // setProcessWatch();
     watchTaskFunc(cb);
   }
 });

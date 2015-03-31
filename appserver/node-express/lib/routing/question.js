@@ -2,6 +2,116 @@ var errs = libRequire('errors');
 var Promise = require('bluebird');
 
 module.exports = function (app, mw) {
+
+  var notAlreadyVoted = function (content, contributor) {
+    var already = (content.upvotingContributorIds &&
+        content.upvotingContributorIds.indexOf(contributor.id) >= 0) ||
+      (content.downvotingContributorIds &&
+        content.downvotingContributorIds.indexOf(contributor.id) >= 0);
+    if (already) {
+      throw errs.alreadyVoted(content, contributor);
+    }
+    else {
+      return;
+    }
+  };
+
+  var getAndRespond = function (req, res, next, docSpec) {
+    return req.db.qnaDoc.getUniqueContent(
+      null, docSpec
+    )
+    .then(function (content) {
+      res.status(200).send(content);
+    });
+  };
+
+  var handleVote = function (type, db, spec, txid) {
+    return db.execAsTransaction(function () {
+      return db.qnaDoc.getUniqueContent(
+        null, { id: spec.questionId }
+      )
+      .then(function (doc) {
+        var step1;
+        var step2;
+        var contentContributorId;
+        var content = spec.answerId ?
+            _.find(
+              doc.answers, { 'id': spec.answerId }
+            ) :
+            doc;
+
+        contentContributorId = content.owner.id;
+        spec.voteChange = spec.operation === 'upvotes' ? 1 : -1;
+        notAlreadyVoted(content, spec.contributor);
+        spec.operation = 'vote' + type;
+        step1 = db.qnaDoc.patch(txid, spec);
+        step2 = db.contributor.patchReputation(
+          txid, contentContributorId, spec.voteChange
+        );
+        return Promise.all([step1, step2]);
+      })
+      .then(function (responses) {
+        // the first item in the array is the spec we want (question spec)
+        return responses[0];
+      });
+    });
+  };
+
+
+  var handleComment = function (type, db, spec) {
+    spec.operation = 'add' + type + 'Comment';
+    return db.qnaDoc.patch(null, spec);
+  };
+
+  var handleAnswer = function (db, spec) {
+    spec.operation = 'addAnswer';
+    return db.qnaDoc.patch(null, spec);
+  };
+
+  var handleAccept = function (db, spec, txid) {
+    return db.execAsTransaction(function () {
+      return db.qnaDoc.getUniqueContent(
+        null, { id: spec.questionId }
+      )
+      .then(function (doc) {
+        var promises = [];
+        var contentContributorId;
+
+        contentContributorId = doc.owner.id;
+        if (doc.owner.id !== spec.contributor.id) {
+          throw errs.mustBeOwner(spec);
+        }
+        spec.operation = 'acceptAnswer';
+        promises.push(db.qnaDoc.patch(txid, spec));
+        promises.push(db.contributor.patchReputation(
+          txid, contentContributorId, 1
+        ));
+        if (doc.acceptedAnswerId) {
+          // we also need to take a point away from previous
+          // accepted answer owner
+          var previously =  _.find(
+            doc.answers, { 'id': spec.answerId }
+          );
+          var previousContributorId = previously.owner.id;
+          promises.push(
+            db.contributor.patchReputation(
+              txid, previousContributorId, -1
+            )
+          );
+        }
+        return Promise.all(promises);
+      })
+      .then(function (responses) {
+        // the first item in the array is the spec we want (question spec)
+        return responses[0];
+      });
+    });
+  };
+
+  /*
+   * ROUTE DEFINITIONS
+   */
+
   // app.get('/v1/questions', [
   //
   //   mw.auth.associateBestRole.bind(app, roles),
@@ -22,13 +132,8 @@ module.exports = function (app, mw) {
     mw.auth.associateBestRole.bind(app, ['contributors', 'default']),
 
     function (req, res, next) {
-      return req.db.qnaDoc.getUniqueContent(null, { id: req.params.id })
-      .then(function (question) {
-        return res.status(200).send(question);
-      })
-      .catch(function (err) {
-        next({ status: err.statusCode || 500, error: err });
-      });
+      return getAndRespond(req, res, next, { id: req.params.id })
+      .catch(next);
     }
   ]);
 
@@ -41,31 +146,10 @@ module.exports = function (app, mw) {
       return req.db.qnaDoc.post(
         null, _.omit(req.user, 'roles'), req.body
       )
-      .then(function (response) {
-        var docId = _.last(
-          response.documents[0].uri.split('/')
-        ).replace(/\.json$/, '');
-        return req.db.qnaDoc.getUniqueContent(null, { id: docId });
-      })
-      .then(function (doc) {
-        return res.status(200).send(doc);
-      })
-      .catch(function (err) {
-        next({ status: err.statusCode || 500, error: err });
-      });
+      .then(getAndRespond.bind(null, req, res, next));
     }
   ]);
 
-  var notAlreadyVoted = function (content, contributor) {
-    var already = content.upvotingContributorIds.indexOf(contributor.id) >= 0 ||
-    content.downvotingContributorIds.indexOf(contributor.id) >= 0;
-    if (already) {
-      throw errs.alreadyVoted(content, contributor);
-    }
-    else {
-      return;
-    }
-  };
 
   /*
    * Route for the following requests
@@ -75,7 +159,6 @@ module.exports = function (app, mw) {
    * /v1/questions/{id}/answers
    */
   app.post('/v1/questions/:questionId/:operation', [
-    //fd044632-55eb-4c91-9300-7578cee12eb3
     mw.auth.tryReviveSession,
     mw.auth.associateBestRole.bind(app, ['contributors']),
     mw.parseBody.json,
@@ -86,75 +169,29 @@ module.exports = function (app, mw) {
 
       spec.contributor = _.omit(req.user, 'roles');
 
-      var txid;
-      // return req.db.transactions.open().result()
-      // .then(function (transactionId) {
-        // txid = transactionId;
-      txid = undefined;
+      var actionPromise;
 
-      // TODO: b/c we need to know the contributor of the content
-      // item we need to do a around trip -- two extra round
-      // trips = mmore performant to do this in a server extension
-      return req.db.transactions.open().result()
-      .then(function (response) {
-        txid = response.txid;
-        return req.db.qnaDoc.getUniqueContent(
-          txid, { id: spec.questionId }
-        )
-        .then(function (doc) {
-          var contentContributorId = doc.owner.id;
-          switch (spec.operation) {
-            case 'upvotes':
-            case 'downvotes':
-              spec.voteChange = spec.operation === 'upvotes' ?
-                  1 :
-                  -1;
-              notAlreadyVoted(doc, spec.contributor);
-              spec.operation = 'voteQuestion';
-              promises.push(req.db.qnaDoc.patch(txid, spec));
-              promises.push(
-                req.db.contributor.patchReputation(
-                  txid, contentContributorId, spec.voteChange
-                )
-              );
-              break;
-            case 'comments':
-              spec.operation = 'addQuestionComment';
-              spec.content = req.body;
-              promises.push(req.db.qnaDoc.patch(txid, spec));
-              break;
-            case 'answers':
-              spec.operation = 'addAnswer';
-              spec.content = req.body;
-              promises.push(req.db.qnaDoc.patch(txid, spec));
-              break;
-            default:
-              throw new errs.unsupportedMethod(req);
-          }
+      switch (spec.operation) {
+        case 'upvotes':
+        case 'downvotes':
+          actionPromise = handleVote('Question', req.db, spec);
+          break;
+        case 'comments':
+          spec.content = req.body;
+          actionPromise = handleComment('Question', req.db, spec);
+          break;
+        case 'answers':
+          spec.content = req.body;
+          actionPromise = handleAnswer(req.db, spec);
+          break;
+        default:
+          next({ error: 'unsupported method: ' + spec.operation});
+      }
 
-          return Promise.all(promises);
-        })
-        .then(function () {
-          return req.db.transactions.commit(txid).result()
-          .then(function () {
-            return req.db.qnaDoc.getUniqueContent(
-              null, { id: spec.questionId }
-            );
-          })
-          .then(function (question) {
-            return res.status(200).send(question);
-          });
-        })
-        .catch(function (err) {
-          return req.db.transactions.rollback(txid).result()
-          .then(function () {
-            next({ status: err.statusCode || 500, error: err });
-          });
-        });
-      })
-      .catch(function (err) {
-        next({ status: err.statusCode || 500, error: err });
-      });
+      return actionPromise
+      .then(getAndRespond.bind(null, req, res, next))
+      .catch(next);
+
     }
   ]);
 
@@ -168,7 +205,7 @@ module.exports = function (app, mw) {
    */
   app.post('/v1/questions/:questionId/answers/:answerId/:operation', [
     mw.auth.tryReviveSession,
-    mw.auth.associateBestRole.bind(app, ['contributors', 'default']),
+    mw.auth.associateBestRole.bind(app, ['contributors']),
     mw.parseBody.json,
 
     function (req, res, next) {
@@ -177,98 +214,27 @@ module.exports = function (app, mw) {
 
       spec.contributor = _.omit(req.user, 'roles');
 
-      var txid;
-      // return req.db.transactions.open().result()
-      // .then(function (transactionId) {
-        // txid = transactionId;
-      txid = undefined;
+      var actionPromise;
 
-      // TODO: b/c we need to know the contributor of the content
-      // item we need to do a around trip -- two extra round
-      // trips = mmore performant to do this in a server extension
-      return req.db.transactions.open().result()
-      .then(function (response) {
-        txid = response.txid;
-        return req.db.qnaDoc.getUniqueContent(
-          txid, { id: spec.questionId }
-        )
-        .then(function (doc) {
-          var answer =  _.find(
-            doc.answers, { 'id': spec.answerId }
-          );
-          var contentContributorId = answer.owner.id;
-          switch (spec.operation) {
-            case 'upvotes':
-            case 'downvotes':
-              spec.voteChange = spec.operation === 'upvotes' ?
-                  1 :
-                  -1;
-              notAlreadyVoted(answer, spec.contributor);
-              spec.operation = 'voteAnswer';
-              promises.push(txid, req.db.qnaDoc.patch(txid, spec));
-              promises.push(
-                req.db.contributor.patchReputation(
-                  txid, contentContributorId, spec.voteChange
-                )
-              );
-              break;
-            case 'comments':
-              spec.operation = 'addAnswerComment';
-              spec.content = req.body;
-              promises.push(req.db.qnaDoc.patch(txid, spec));
-              break;
-            case 'accept':
-              if (doc.owner.id !== spec.contributor.id) {
-                throw errs.mustBeOwner(spec);
-              }
-              spec.operation = 'acceptAnswer';
-              promises.push(req.db.qnaDoc.patch(txid, spec));
-              promises.push(
-                req.db.contributor.patchReputation(
-                  txid, contentContributorId, 1
-                )
-              );
-              if (doc.acceptedAnswerId) {
-                // we also need to take a point away from previous
-                // accepted answer owner
-                var previously =  _.find(
-                  doc.answers, { 'id': spec.answerId }
-                );
-                var previousContributorId = previously.owner.id;
-                promises.push(
-                  req.db.contributor.patchReputation(
-                    txid, previousContributorId, -1
-                  )
-                );
-              }
-              break;
-            default:
-              throw new errs.unsupportedMethod(req);
-          }
+      switch (spec.operation) {
+        case 'upvotes':
+        case 'downvotes':
+          actionPromise = handleVote('Answer', req.db, spec);
+          break;
+        case 'comments':
+          spec.content = req.body;
+          actionPromise = handleComment('Answer', req.db, spec);
+          break;
+        case 'accept':
+          actionPromise = handleAccept(req.db, spec);
+          break;
+        default:
+          throw new errs.unsupportedMethod(req);
+      }
 
-          return Promise.all(promises);
-        })
-        .then(function () {
-          return req.db.transactions.commit(txid).result()
-          .then(function () {
-            return req.db.qnaDoc.getUniqueContent(
-              null, { id: spec.questionId }
-            );
-          })
-          .then(function (question) {
-            return res.status(200).send(question);
-          });
-        })
-        .catch(function (err) {
-          return req.db.transactions.rollback(txid).result()
-          .then(function () {
-            next({ status: err.statusCode || 500, error: err });
-          });
-        });
-      })
-      .catch(function (err) {
-        next({ status: err.statusCode || 500, error: err });
-      });
+      return actionPromise
+      .then(getAndRespond.bind(null, req, res, next))
+      .catch(next);
     }
   ]);
 

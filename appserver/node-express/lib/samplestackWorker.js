@@ -1,13 +1,18 @@
 var path = require('path');
-var options = require('../options');
-var mon = libRequire('monitoring');
-var express = require('express');
 
 // all paths to libRequire are relative to the lib directory, hence very
 // few upward traversals (options is the exception)
 global.libRequire = function (name) {
   return require(path.resolve(__dirname, name));
 };
+global.sharedRequire = function (name) {
+  return require(path.resolve(__dirname, '../../../shared', name));
+};
+
+var options = sharedRequire('js/options');
+var mon = libRequire('monitoring');
+var express = require('express');
+
 
 // configure Express
 var app = express();
@@ -19,7 +24,14 @@ app.set('x-powered-by', false);
 app.use(require('compression')({ threshold: 1024 }));
 
 var browserBuilt = path.resolve(__dirname, '../../../browser/builds/built');
-app.use(/^(?!\/v1\/)/, express.static(browserBuilt));
+var serveStaticDir = express.static(browserBuilt);
+
+app.use(/^(?!\/v1\/)/, function (req, res, next) {
+  if (req.path.indexOf('.') < 0) {
+    req.url = '/index.html';
+  }
+  serveStaticDir(req, res, next);
+});
 
 // read/parse cookies all the time on REST endpoints
 app.use('/v1/', require('cookie-parser')());
@@ -53,13 +65,13 @@ app.use('/v1/', function (err, req, res, next) {
 });
 
 var listener;
-if (options.https) {
-  listener = require('https').createServer(options.https, app)
-      .listen(options.port, options.hostname);
+if (options.middleTier.https) {
+  listener = require('https').createServer(options.middleTier.https, app)
+      .listen(options.middleTier.port, options.midleTier.hostname);
 }
 else {
   listener = require('http').createServer(app)
-      .listen(options.port, options.hostname);
+      .listen(options.middleTier.port, options.middleTier.hostname);
 }
 
 process.on('exit', function () {
